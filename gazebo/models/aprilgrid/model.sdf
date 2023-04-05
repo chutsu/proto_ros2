@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="aprilgrid">
+    <allow_auto_disable>true</allow_auto_disable>
+    <link name="aprilgrid">
+      <kinematic>true</kinematic>
+
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>model://aprilgrid/aprilgrid.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <plugin
+      filename="gz-sim-pose-publisher-system"
+      name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>false</publish_link_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>true</publish_nested_model_pose>
+    </plugin>
+  </model>
+</sdf>

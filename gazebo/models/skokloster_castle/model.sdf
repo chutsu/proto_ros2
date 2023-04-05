@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="skokloster_castle">
+    <allow_auto_disable>true</allow_auto_disable>
+    <static>true</static>
+
+    <link name="skokloster_castle">
+      <kinematic>false</kinematic>
+
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>model://skokloster_castle/skokloster_castle.dae</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>

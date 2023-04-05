@@ -1,0 +1,339 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="gimbal">
+
+    <!-- Gimbal base -->
+    <link name="gimbal_base">
+      <gravity>0</gravity>
+      <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+    </link>
+
+    <!-- Gimbal yaw -->
+    <link name="gimbal_yaw">
+      <gravity>0</gravity>
+      <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.032</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.032</iyy>
+          <iyz>0</iyz>
+          <izz>0.00012</izz>
+        </inertia>
+        <mass>0.200</mass>
+      </inertial>
+
+      <visual name="visual">
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+            <ambient>1.0 0.0 0.0 1</ambient>
+            <diffuse>1.0 0.0 0.0 1</diffuse>
+            <specular>1.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Gimbal Roll -->
+    <link name="gimbal_roll">
+      <gravity>0</gravity>
+      <pose relative_to="gimbal_yaw">-0.08 0 0.1 0 1.5708 0</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.032</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.032</iyy>
+          <iyz>0</iyz>
+          <izz>0.00012</izz>
+        </inertia>
+        <mass>0.200</mass>
+      </inertial>
+
+      <visual name="visual">
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+            <ambient>1.0 0.0 0.0 1</ambient>
+            <diffuse>1.0 0.0 0.0 1</diffuse>
+            <specular>1.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Gimbal pitch -->
+    <link name="gimbal_pitch">
+      <gravity>0</gravity>
+      <pose relative_to="gimbal_roll">0 0.02 0.1 1.5708 0 0</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.032</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.032</iyy>
+          <iyz>0</iyz>
+          <izz>0.00012</izz>
+        </inertia>
+        <mass>0.200</mass>
+      </inertial>
+
+      <visual name="visual">
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+            <ambient>1.0 0.0 0.0 1</ambient>
+            <diffuse>1.0 0.0 0.0 1</diffuse>
+            <specular>1.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- camera0 -->
+    <link name="camera0">
+      <gravity>0</gravity>
+      <pose relative_to="gimbal_pitch">0 0 -0.1 -1.5708 0 1.5708</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.032</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.032</iyy>
+          <iyz>0</iyz>
+          <izz>0.00012</izz>
+        </inertia>
+        <mass>0.08</mass>
+      </inertial>
+
+      <visual name="visual">
+        <pose>0.0 0.0 0.0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.03 0.03</size>
+          </box>
+        </geometry>
+      </visual>
+
+      <collision name="collision">
+        <pose>0.0 0.0 0.0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.03 0.03</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <sensor name="camera0" type="camera">
+        <topic>/gimbal/camera0</topic>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>640</height>
+          </image>
+        </camera>
+
+        <always_on>1</always_on>
+        <update_rate>20</update_rate>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <!-- camera1 -->
+    <link name="camera1">
+      <gravity>0</gravity>
+      <pose relative_to="gimbal_pitch">0 0 0.1 -1.5708 0 1.5708</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.032</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.032</iyy>
+          <iyz>0</iyz>
+          <izz>0.00012</izz>
+        </inertia>
+        <mass>0.08</mass>
+      </inertial>
+
+      <visual name="visual">
+        <pose>0.0 0.0 0.0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.03 0.03</size>
+          </box>
+        </geometry>
+      </visual>
+
+      <collision name="collision">
+        <pose>0.0 0.0 0.0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.03 0.03</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <sensor name="camera1" type="camera">
+        <topic>/gimbal/camera1</topic>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>640</height>
+          </image>
+        </camera>
+
+        <always_on>1</always_on>
+        <update_rate>20</update_rate>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <!-- World to gimbal base joint  -->
+    <joint name="world_fixed" type="fixed">
+      <parent>world</parent>
+      <child>gimbal_base</child>
+    </joint>
+
+    <!-- Yaw joint -->
+    <joint name="joint_yaw" type="revolute">
+      <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+      <parent>gimbal_base</parent>
+      <child>gimbal_yaw</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <dynamics>
+          <damping>1.0</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <plugin
+        filename="gz-sim-joint-position-controller-system"
+        name="gz::sim::systems::JointPositionController">
+      <joint_name>joint_yaw</joint_name>
+      <topic>/gimbal/joint0_cmd</topic>
+      <p_gain>10</p_gain>
+      <i_gain>0.01</i_gain>
+      <d_gain>0.5</d_gain>
+      <i_max>1</i_max>
+      <i_min>-1</i_min>
+      <cmd_max>1000</cmd_max>
+      <cmd_min>-1000</cmd_min>
+    </plugin>
+    <plugin
+        filename="gz-sim-joint-state-publisher-system"
+        name="gz::sim::systems::JointStatePublisher">
+      <joint_name>joint_yaw</joint_name>
+      <topic>/gimbal/joint0_state</topic>
+    </plugin>
+
+    <!-- Roll joint -->
+    <joint name="joint_roll" type="revolute">
+      <pose>0 0.0 0 0 0 0</pose>
+      <parent>gimbal_yaw</parent>
+      <child>gimbal_roll</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <dynamics>
+          <damping>1.0</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <plugin
+        filename="gz-sim-joint-position-controller-system"
+        name="gz::sim::systems::JointPositionController">
+      <joint_name>joint_roll</joint_name>
+      <topic>/gimbal/joint1_cmd</topic>
+      <p_gain>10</p_gain>
+      <i_gain>0.01</i_gain>
+      <d_gain>0.5</d_gain>
+      <i_max>1</i_max>
+      <i_min>-1</i_min>
+      <cmd_max>1000</cmd_max>
+      <cmd_min>-1000</cmd_min>
+    </plugin>
+    <plugin
+        filename="gz-sim-joint-state-publisher-system"
+        name="gz::sim::systems::JointStatePublisher">
+      <joint_name>joint_roll</joint_name>
+      <topic>/gimbal/joint1_state</topic>
+    </plugin>
+
+    <!-- Pitch joint -->
+    <joint name="joint_pitch" type="revolute">
+      <pose>0 0.0 0 0 0 0</pose>
+      <parent>gimbal_roll</parent>
+      <child>gimbal_pitch</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <dynamics>
+          <damping>1.0</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <plugin
+        filename="gz-sim-joint-position-controller-system"
+        name="gz::sim::systems::JointPositionController">
+      <joint_name>joint_pitch</joint_name>
+      <topic>/gimbal/joint2_cmd</topic>
+      <p_gain>10</p_gain>
+      <i_gain>0.01</i_gain>
+      <d_gain>0.5</d_gain>
+      <i_max>1</i_max>
+      <i_min>-1</i_min>
+      <cmd_max>1000</cmd_max>
+      <cmd_min>-1000</cmd_min>
+    </plugin>
+    <plugin
+        filename="gz-sim-joint-state-publisher-system"
+        name="gz::sim::systems::JointStatePublisher">
+      <joint_name>joint_pitch</joint_name>
+      <topic>/gimbal/joint2_state</topic>
+    </plugin>
+
+    <!-- Gimbal pitch to camera0 -->
+    <joint name="camera0_extrinsic" type="fixed">
+      <pose>0 0 0 0 0 0</pose>
+      <parent>gimbal_pitch</parent>
+      <child>camera0</child>
+    </joint>
+
+    <!-- Gimbal pitch to camera1 -->
+    <joint name="camera1_extrinsic" type="fixed">
+      <pose>0 0 0 0 0 0</pose>
+      <parent>gimbal_pitch</parent>
+      <child>camera1</child>
+    </joint>
+
+    <!-- Pose publisher -->
+    <plugin
+      filename="gz-sim-pose-publisher-system"
+      name="gz::sim::systems::PosePublisher">
+      <publish_model_pose>true</publish_model_pose>
+      <publish_nested_model_pose>true</publish_nested_model_pose>
+      <publish_link_pose>false</publish_link_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+    </plugin>
+  </model>
+</sdf>

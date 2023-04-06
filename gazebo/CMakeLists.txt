@@ -16,11 +16,8 @@ SET(DEPS
     PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
     PRIVATE gz-sim7::gz-sim7)
 
-# ADD_LIBRARY(GimbalPlugin SHARED plugins/GimbalPlugin.cc)
-# TARGET_LINK_LIBRARIES(GimbalPlugin ${DEPS})
-
-# ADD_LIBRARY(HelloWorldPlugin SHARED plugins/HelloWorldPlugin.cc)
-# TARGET_LINK_LIBRARIES(HelloWorldPlugin ${DEPS})
+ADD_LIBRARY(HelloWorldPlugin SHARED plugins/HelloWorldPlugin.cc)
+TARGET_LINK_LIBRARIES(HelloWorldPlugin ${DEPS})
 
 ADD_LIBRARY(ModelPlugin SHARED plugins/ModelPlugin.cc)
 TARGET_LINK_LIBRARIES(ModelPlugin ${DEPS})

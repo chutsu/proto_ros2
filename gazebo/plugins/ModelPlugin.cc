@@ -32,6 +32,8 @@ private:
   gz::sim::Entity entity_;
   gz::sim::Model model_;
   gz::transport::Node node_;
+  gz::transport::Node::Publisher twist_pub_;
+  gz::transport::Node::Publisher pose_pub_;
 
   // Model state
   gz::math::Vector3d position_{0.0, 0.0, 0.0};
@@ -79,9 +81,7 @@ private:
   }
 
 public:
-  gz::transport::Node::Publisher twist_pub_;
-  gz::transport::Node::Publisher pose_pub_;
-
+  /** Constructors and Destructors **/
   ModelPlugin() = default;
   virtual ~ModelPlugin() = default;
 
@@ -90,6 +90,7 @@ public:
                  const std::shared_ptr<const sdf::Element> &sdf,
                  gz::sim::EntityComponentManager &ecm,
                  gz::sim::EventManager &eventMgr) override {
+    // Entity and model
     entity_ = entity;
     model_ = gz::sim::Model(entity);
 

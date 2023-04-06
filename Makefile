@@ -31,14 +31,20 @@ run_docker: build   ## Run proto_ros2 docker
 build: ## Build proto_ws
 	@cd ${ROS2_WS} && colcon build
 
-calib_sim: ## Build proto_ws
+sim_calib:  ## Run calibration simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
 		&& ros2 launch proto_ros2 calib_sim.launch.py
 
-gz_gimbal: ## Build gz_gimbal
+sim_gimbal: ## Run gimbal simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
 		&& ros2 run proto_ros2 gz_gimbal
+
+sim_mav:  ## Run MAV simulation
+	@cd ${ROS2_WS} \
+		&& colcon build --packages-select proto_ros2 \
+		&& source install/setup.bash \
+		&& ros2 launch proto_ros2 mav.launch.py

@@ -1,7 +1,6 @@
 #include <gz/sim/Util.hh>
 #include <gz/sim/Model.hh>
 #include <gz/sim/System.hh>
-#include <gz/sim/System.hh>
 #include <gz/sim/components/JointPosition.hh>
 #include <gz/sim/components/JointVelocityCmd.hh>
 #include <gz/sim/EntityComponentManager.hh>

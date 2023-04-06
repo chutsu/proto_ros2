@@ -5,15 +5,15 @@
 
     <link name="chasis">
       <pose>0 0 0.182466 0 0 0</pose>
-      <gravity>false</gravity>
-      <!-- <inertial> -->
-      <!--   <mass>1.0</mass> -->
-      <!--   <inertia> -->
-      <!--     <ixx>0.0963</ixx> -->
-      <!--     <iyy>0.0963</iyy> -->
-      <!--     <izz>0.1927</izz> -->
-      <!--   </inertia> -->
-      <!-- </inertial> -->
+      <gravity>true</gravity>
+      <inertial>
+        <mass>1.0</mass>
+        <!-- <inertia> -->
+        <!--   <ixx>0.0963</ixx> -->
+        <!--   <iyy>0.0963</iyy> -->
+        <!--   <izz>0.1927</izz> -->
+        <!-- </inertia> -->
+      </inertial>
 
       <collision name="collision">
         <geometry>
@@ -21,6 +21,7 @@
             <uri>model://mav/model.obj</uri>
           </mesh>
         </geometry>
+
         <!-- <surface> -->
         <!--   <friction> -->
         <!--     <ode> -->
@@ -85,6 +86,7 @@
     <!--   </sensor> -->
     <!-- </link> -->
 
-    <!-- <plugin name="mav_plugin" filename="libproto_mav_plugin.so"/> -->
+    <plugin filename="libModelPlugin" name="ModelPlugin">
+    </plugin>
   </model>
 </sdf>

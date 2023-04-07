@@ -77,9 +77,10 @@ private:
   void UpdateMAV(gz::sim::EntityComponentManager &ecm) {
     // Update MAV motion model
     const real_t dt = 0.001;
-    const real_t pos_sp[3] = {setpoint_position_.X(),
+    const real_t pos_sp[4] = {setpoint_position_.X(),
                               setpoint_position_.Y(),
-                              setpoint_position_.Z()};
+                              setpoint_position_.Z(),
+                              0.0};
     const real_t pos_pv[4] = {mav_.x[6], mav_.x[7], mav_.x[8], mav_.x[2]};
     const real_t att_pv[3] = {mav_.x[0], mav_.x[1], mav_.x[2]};
 

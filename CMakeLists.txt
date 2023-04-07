@@ -26,8 +26,15 @@ SET(GZ_COMMON_VER ${gz-common5_VERSION_MAJOR})
 SET(GZ_MATH_VER ${gz-math7_VERSION_MAJOR})
 SET(GZ_SIM_VER ${gz-sim7_VERSION_MAJOR})
 
-# INCLUDES
-INCLUDE_DIRECTORIES(include ${OpenCV_INCLUDE_DIRS})
+# PROTO DEPENDENCIES
+FIND_PACKAGE(BLAS REQUIRED)
+FIND_PACKAGE(LAPACK REQUIRED)
+
+
+# INCLUDES AND LIB DIRECTORIES
+INCLUDE_DIRECTORIES(include ${OpenCV_INCLUDE_DIRS} /opt/proto/include)
+LINK_DIRECTORIES(/opt/proto/lib)
+
 
 # EXECUTABLES
 ADD_EXECUTABLE(offboard src/offboard.cpp)
@@ -70,17 +77,27 @@ INSTALL(DIRECTORY gazebo DESTINATION share/${PROJECT_NAME}/)
 
 
 # Build Plugins
-SET(DEPS
-    PRIVATE gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
-    PRIVATE gz-sim7::gz-sim7)
+SET(GZ_DEPS
+    gz-plugin${GZ_PLUGIN_VER}::gz-plugin${GZ_PLUGIN_VER}
+    gz-sim7::gz-sim7)
+
+SET(PROTO_DEPS
+    ${BLAS_LIBRARIES}
+    ${LAPACK_LIBRARIES}
+    ${OpenCV_LIBS}
+    proto)
 
 ADD_LIBRARY(HelloWorldPlugin SHARED gazebo/plugins/HelloWorldPlugin.cc)
-TARGET_LINK_LIBRARIES(HelloWorldPlugin ${DEPS})
+TARGET_LINK_LIBRARIES(HelloWorldPlugin ${GZ_DEPS})
 INSTALL(TARGETS HelloWorldPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
 
 ADD_LIBRARY(ModelPlugin SHARED gazebo/plugins/ModelPlugin.cc)
-TARGET_LINK_LIBRARIES(ModelPlugin ${DEPS})
+TARGET_LINK_LIBRARIES(ModelPlugin ${GZ_DEPS})
 INSTALL(TARGETS ModelPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
+
+ADD_LIBRARY(MavPlugin SHARED gazebo/plugins/MavPlugin.cc)
+TARGET_LINK_LIBRARIES(MavPlugin ${GZ_DEPS} ${PROTO_DEPS})
+INSTALL(TARGETS MavPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
 
 
 # FORM ROS2 Package

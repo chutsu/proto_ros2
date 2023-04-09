@@ -8,7 +8,7 @@
       <visual name="visual">
         <geometry>
           <mesh>
-            <uri>model://aprilgrid/aprilgrid.dae</uri>
+            <uri>model://aprilgrid/aprilgrid.obj</uri>
             <scale>1 1 1</scale>
           </mesh>
         </geometry>

@@ -174,6 +174,10 @@ public:
   /** Plugin Pre-Update **/
   void PreUpdate(const gz::sim::UpdateInfo &info,
                  gz::sim::EntityComponentManager &ecm) override {
+    if (info.paused) {
+      return;
+    }
+
     UpdateMAV(ecm);
   }
 

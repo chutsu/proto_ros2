@@ -43,5 +43,11 @@
       <uri>model://skokloster_castle</uri>
       <pose>0 0 0 0 0 0</pose>
     </include>
+
+    <!-- MAV -->
+    <include>
+      <uri>model://mav</uri>
+      <pose>1 1 0 0 0 0</pose>
+    </include>
   </world>
 </sdf>

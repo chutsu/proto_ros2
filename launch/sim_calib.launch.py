@@ -44,7 +44,7 @@ def ros_gz_pose_bridge(topic):
 
 def generate_launch_description():
     # Settings
-    gz_world = "calibration.sdf"
+    gz_world = "sim_calib.sdf"
 
     # Set gazebo environment variables
     pkg_share_dir = get_package_share_directory('proto_ros2')

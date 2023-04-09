@@ -35,7 +35,7 @@ sim_calib:  ## Run calibration simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 calib_sim.launch.py
+		&& ros2 launch proto_ros2 sim_calib.launch.py
 
 sim_gimbal: ## Run gimbal simulation
 	@cd ${ROS2_WS} \
@@ -47,4 +47,4 @@ sim_mav:  ## Run MAV simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 mav.launch.py
+		&& ros2 launch proto_ros2 sim_mav.launch.py

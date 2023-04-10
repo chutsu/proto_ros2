@@ -87,6 +87,10 @@ SET(PROTO_DEPS
     ${OpenCV_LIBS}
     proto)
 
+ADD_LIBRARY(GimbalPlugin SHARED gazebo/plugins/GimbalPlugin.cc)
+TARGET_LINK_LIBRARIES(GimbalPlugin ${GZ_DEPS} ${PROTO_DEPS})
+INSTALL(TARGETS GimbalPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
+
 ADD_LIBRARY(HelloWorldPlugin SHARED gazebo/plugins/HelloWorldPlugin.cc)
 TARGET_LINK_LIBRARIES(HelloWorldPlugin ${GZ_DEPS})
 INSTALL(TARGETS HelloWorldPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)

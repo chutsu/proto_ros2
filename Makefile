@@ -54,3 +54,9 @@ sim_castle:  ## Run castle simulation
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
 		&& ros2 launch proto_ros2 sim_castle.launch.py
+
+sim_sandbox:  ## Run sandbox simulation
+	@cd ${ROS2_WS} \
+		&& colcon build --packages-select proto_ros2 \
+		&& source install/setup.bash \
+		&& ros2 launch proto_ros2 sim_sandbox.launch.py

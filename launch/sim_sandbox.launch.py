@@ -44,7 +44,7 @@ def ros_gz_pose_bridge(topic):
 
 def generate_launch_description():
     # Settings
-    gz_world = "sim_mav.sdf"
+    gz_world = "sim_sandbox.sdf"
 
     # Set gazebo environment variables
     pkg_share_dir = get_package_share_directory('proto_ros2')
@@ -54,10 +54,15 @@ def generate_launch_description():
     os.environ['GZ_SIM_RESOURCE_PATH'] = models_path + ":" + worlds_path
     os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'] = plugins_path
 
-    # Gazebo Simulator
-    gz_proc = ExecuteProcess(cmd=['gz', 'sim', gz_world, '-v'], output='screen')
+    # Config path
+    proj_dir = "/".join(os.path.dirname(__file__).split("/")[:-1])
+    config_path = os.path.join(proj_dir, "gazebo/configs/sim_sandbox.config")
 
-    # # Gazebo -> ROS2 bridges
+    # Gazebo Simulator
+    cmd = ['gz', 'sim', gz_world, '-v', '--gui-config', config_path]
+    gz_proc = ExecuteProcess(cmd=cmd, output='screen')
+
+    # Gazebo -> ROS2 bridges
     # cam0_bridge = ros_gz_image_bridge("/gimbal/camera0")
     # cam1_bridge = ros_gz_image_bridge("/gimbal/camera1")
     # yaw_cmd_bridge = ros_gz_gimbal_joint_cmd_bridge("/gimbal/joint0_cmd")

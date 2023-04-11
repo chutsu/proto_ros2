@@ -48,7 +48,7 @@ private:
   gz::transport::Node::Publisher twist_pub_;
 
   gz::math::Pose3d pose_;
-  gz::math::Vector3d position_setpoint_{0.0, 0.0, 3.0};
+  gz::math::Vector3d position_setpoint_{0.0, 0.0, 5.0};
   double yaw_setpoint_ = 0.0;
 
   gz::math::Vector3d linear_velocity_cmd_{0.0, 0.0, 0.0};
@@ -70,12 +70,12 @@ private:
 
   double pos_err_z_sum_ = 0.0;
   double pos_err_z_prev_ = 0.0;
-  double vz_kp_ = 100.0;
+  double vz_kp_ = 60.0;
   double vz_ki_ = 1.0;
   double vz_kd_ = 60.0;
 
-  double err_yaw_sum_ = 0.0;
-  double err_yaw_prev_ = 0.0;
+  double yaw_err_sum_ = 0.0;
+  double yaw_err_prev_ = 0.0;
   double wz_kp_ = 1.0;
   double wz_ki_ = 0.0;
   double wz_kd_ = 1.0;
@@ -85,13 +85,16 @@ private:
   double vz_limits_[2] = {-10.0, 10.0};
   double wz_limits_[2] = {-10.0, 10.0};
 
+  /** Calculate Angular Velocity **/
   void CalculateLinearVelocityCommands() {
     // Calculate position error
-    auto pos_sp = position_setpoint_;              // Setpoint
-    auto pos_pv = pose_.Pos();                     // Process Variable (actual)
-    auto q_BW = pose_.Rot().Inverse();             // Rotation to body frame
-    auto pos_err_W = pos_sp - pos_pv;              // Error in world frame
-    auto pos_err_B = q_BW.RotateVector(pos_err_W); // Error in body frame
+    const auto yaw = pose_.Rot().Yaw();
+    const gz::math::Quaterniond q_WB(0, 0, yaw); // Rotation in world frame
+    const auto q_BW = q_WB.Inverse();            // Rotation in body frame
+    const auto pos_sp = position_setpoint_;      // Setpoint
+    const auto pos_pv = pose_.Pos();             // Process Variable (actual)
+    const auto pos_err_W = pos_sp - pos_pv;      // Error in world frame
+    const auto pos_err_B = q_BW.RotateVector(pos_err_W); // Error in body frame
 
     // X-axis command
     double vx_cmd = 0.0;
@@ -141,6 +144,7 @@ private:
     linear_velocity_cmd_.Z() = vz_cmd;
   }
 
+  /** Calculate Angular Velocity **/
   void CalculateAngularVelocityCommands() {
     // Calculate yaw error
     auto yaw_sp = yaw_setpoint_;     // Setpoint
@@ -150,10 +154,10 @@ private:
     // Rotation Z-axis command
     double wz_cmd = 0.0;
     wz_cmd = wz_kp_ * yaw_err;
-    wz_cmd += wz_ki_ * err_yaw_sum_;
-    wz_cmd += wz_kd_ * (yaw_err - err_yaw_prev_) / dt_;
-    err_yaw_sum_ += yaw_err * dt_;
-    err_yaw_prev_ = yaw_err;
+    wz_cmd += wz_ki_ * yaw_err_sum_;
+    wz_cmd += wz_kd_ * (yaw_err - yaw_err_prev_) / dt_;
+    yaw_err_sum_ += yaw_err * dt_;
+    yaw_err_prev_ = yaw_err;
 
     if (wz_cmd < wz_limits_[0]) {
       wz_cmd = wz_limits_[0];

@@ -10,6 +10,7 @@
       <render_engine>ogre2</render_engine>
     </plugin>
 
+    <!-- LIGHTING -->
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
@@ -24,6 +25,7 @@
       <direction>-0.5 0.1 -0.9</direction>
     </light>
 
+    <!-- GROUND PLANE -->
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
@@ -51,153 +53,10 @@
       </link>
     </model>
 
+    <!-- MAV -->
     <include>
-      <uri>
-        https://fuel.gazebosim.org/1.0/OpenRobotics/models/X3 UAV/4
-      </uri>
-
-      <!-- Motor Model Plugins -->
-      <plugin
-        filename="gz-sim-multicopter-motor-model-system"
-        name="gz::sim::systems::MulticopterMotorModel">
-        <robotNamespace>X3</robotNamespace>
-        <jointName>X3/rotor_0_joint</jointName>
-        <linkName>X3/rotor_0</linkName>
-        <turningDirection>ccw</turningDirection>
-        <timeConstantUp>0.0125</timeConstantUp>
-        <timeConstantDown>0.025</timeConstantDown>
-        <maxRotVelocity>800.0</maxRotVelocity>
-        <motorConstant>8.54858e-06</motorConstant>
-        <momentConstant>0.016</momentConstant>
-        <commandSubTopic>motor_speed/cmd</commandSubTopic>
-        <motorNumber>0</motorNumber>
-        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
-        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
-        <motorSpeedPubTopic>motor_speed/0</motorSpeedPubTopic>
-        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
-        <motorType>velocity</motorType>
-      </plugin>
-      <plugin
-        filename="gz-sim-multicopter-motor-model-system"
-        name="gz::sim::systems::MulticopterMotorModel">
-        <robotNamespace>X3</robotNamespace>
-        <jointName>X3/rotor_1_joint</jointName>
-        <linkName>X3/rotor_1</linkName>
-        <turningDirection>ccw</turningDirection>
-        <timeConstantUp>0.0125</timeConstantUp>
-        <timeConstantDown>0.025</timeConstantDown>
-        <maxRotVelocity>800.0</maxRotVelocity>
-        <motorConstant>8.54858e-06</motorConstant>
-        <momentConstant>0.016</momentConstant>
-        <commandSubTopic>motor_speed/cmd</commandSubTopic>
-        <motorNumber>1</motorNumber>
-        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
-        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
-        <motorSpeedPubTopic>motor_speed/1</motorSpeedPubTopic>
-        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
-        <motorType>velocity</motorType>
-      </plugin>
-      <plugin
-        filename="gz-sim-multicopter-motor-model-system"
-        name="gz::sim::systems::MulticopterMotorModel">
-        <robotNamespace>X3</robotNamespace>
-        <jointName>X3/rotor_2_joint</jointName>
-        <linkName>X3/rotor_2</linkName>
-        <turningDirection>cw</turningDirection>
-        <timeConstantUp>0.0125</timeConstantUp>
-        <timeConstantDown>0.025</timeConstantDown>
-        <maxRotVelocity>800.0</maxRotVelocity>
-        <motorConstant>8.54858e-06</motorConstant>
-        <momentConstant>0.016</momentConstant>
-        <commandSubTopic>motor_speed/cmd</commandSubTopic>
-        <motorNumber>2</motorNumber>
-        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
-        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
-        <motorSpeedPubTopic>motor_speed/2</motorSpeedPubTopic>
-        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
-        <motorType>velocity</motorType>
-      </plugin>
-      <plugin
-        filename="gz-sim-multicopter-motor-model-system"
-        name="gz::sim::systems::MulticopterMotorModel">
-        <robotNamespace>X3</robotNamespace>
-        <jointName>X3/rotor_3_joint</jointName>
-        <linkName>X3/rotor_3</linkName>
-        <turningDirection>cw</turningDirection>
-        <timeConstantUp>0.0125</timeConstantUp>
-        <timeConstantDown>0.025</timeConstantDown>
-        <maxRotVelocity>800.0</maxRotVelocity>
-        <motorConstant>8.54858e-06</motorConstant>
-        <momentConstant>0.016</momentConstant>
-        <commandSubTopic>motor_speed/cmd</commandSubTopic>
-        <motorNumber>3</motorNumber>
-        <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
-        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
-        <motorSpeedPubTopic>motor_speed/3</motorSpeedPubTopic>
-        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
-        <motorType>velocity</motorType>
-      </plugin>
-
-      <!-- Velocity Controller Plugin -->
-      <plugin
-        filename="gz-sim-multicopter-control-system"
-        name="gz::sim::systems::MulticopterVelocityControl">
-        <robotNamespace>X3</robotNamespace>
-        <commandSubTopic>twist/cmd</commandSubTopic>
-        <enableSubTopic>enable</enableSubTopic>
-        <comLinkName>X3/base_link</comLinkName>
-        <velocityGain>2.7 2.7 2.7</velocityGain>
-        <attitudeGain>2 3 0.15</attitudeGain>
-        <angularRateGain>0.4 0.52 0.18</angularRateGain>
-        <maximumLinearAcceleration>2 2 2</maximumLinearAcceleration>
-
-        <rotorConfiguration>
-          <rotor>
-            <jointName>X3/rotor_0_joint</jointName>
-            <forceConstant>8.54858e-06</forceConstant>
-            <momentConstant>0.016</momentConstant>
-            <direction>1</direction>
-          </rotor>
-          <rotor>
-            <jointName>X3/rotor_1_joint</jointName>
-            <forceConstant>8.54858e-06</forceConstant>
-            <momentConstant>0.016</momentConstant>
-            <direction>1</direction>
-          </rotor>
-          <rotor>
-            <jointName>X3/rotor_2_joint</jointName>
-            <forceConstant>8.54858e-06</forceConstant>
-            <momentConstant>0.016</momentConstant>
-            <direction>-1</direction>
-          </rotor>
-          <rotor>
-            <jointName>X3/rotor_3_joint</jointName>
-            <forceConstant>8.54858e-06</forceConstant>
-            <momentConstant>0.016</momentConstant>
-            <direction>-1</direction>
-          </rotor>
-        </rotorConfiguration>
-      </plugin>
-
-      <!-- Odometry Plugin -->
-      <plugin
-        filename="gz-sim-odometry-publisher-system"
-        name="gz::sim::systems::OdometryPublisher">
-        <dimensions>3</dimensions>
-        <odom_topic>/X3/odom</odom_topic>
-        <tf_topic>/X3/pose</tf_topic>
-      </plugin>
-
-      <!-- Position Controller Plugin -->
-      <plugin filename="libMavPositionControllerPlugin" name="MavPositionControllerPlugin">
-        <!-- Input topics -->
-        <positionCommandTopic>/X3/position/cmd</positionCommandTopic>
-        <yawCommandTopic>/X3/yaw/cmd</yawCommandTopic>
-
-        <!-- Output topic -->
-        <twistCommandTopic>/X3/twist/cmd</twistCommandTopic>
-      </plugin>
+      <uri>model://x500</uri>
+      <pose>0 0 10 0 0 0</pose>
     </include>
-
   </world>
 </sdf>

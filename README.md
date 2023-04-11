@@ -3,7 +3,6 @@
 This repo contains experimental code to perform VIO / SLAM in Gazebo with ROS2.
 
 
-
 ## Build
 
 For convenience there is a Makefile with the following make targets:

@@ -87,10 +87,6 @@ SET(PROTO_DEPS
     ${OpenCV_LIBS}
     proto)
 
-ADD_LIBRARY(GimbalPlugin SHARED gazebo/plugins/GimbalPlugin.cc)
-TARGET_LINK_LIBRARIES(GimbalPlugin ${GZ_DEPS} ${PROTO_DEPS})
-INSTALL(TARGETS GimbalPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
-
 ADD_LIBRARY(HelloWorldPlugin SHARED gazebo/plugins/HelloWorldPlugin.cc)
 TARGET_LINK_LIBRARIES(HelloWorldPlugin ${GZ_DEPS})
 INSTALL(TARGETS HelloWorldPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
@@ -102,6 +98,10 @@ INSTALL(TARGETS ModelPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
 ADD_LIBRARY(MavPlugin SHARED gazebo/plugins/MavPlugin.cc)
 TARGET_LINK_LIBRARIES(MavPlugin ${GZ_DEPS} ${PROTO_DEPS})
 INSTALL(TARGETS MavPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
+
+ADD_LIBRARY(MavPositionControllerPlugin SHARED gazebo/plugins/MavPositionControllerPlugin.cc)
+TARGET_LINK_LIBRARIES(MavPositionControllerPlugin ${GZ_DEPS} ${PROTO_DEPS})
+INSTALL(TARGETS MavPositionControllerPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
 
 
 # FORM ROS2 Package

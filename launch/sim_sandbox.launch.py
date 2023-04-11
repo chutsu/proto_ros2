@@ -59,7 +59,7 @@ def generate_launch_description():
     config_path = os.path.join(proj_dir, "gazebo/configs/sim_sandbox.config")
 
     # Gazebo Simulator
-    cmd = ['gz', 'sim', gz_world, '-v', '--gui-config', config_path]
+    cmd = ['gz', 'sim', gz_world, '-r', '-v', '--gui-config', config_path]
     gz_proc = ExecuteProcess(cmd=cmd, output='screen')
 
     # Gazebo -> ROS2 bridges

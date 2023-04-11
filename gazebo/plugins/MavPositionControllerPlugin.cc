@@ -9,11 +9,14 @@
 #include <gz/sim/components/AngularVelocityCmd.hh>
 #include <gz/sim/components/LinearVelocityCmd.hh>
 #include <gz/sim/components/Pose.hh>
+#include <gz/sim/components/ParentEntity.hh>
 #include <gz/sim/config.hh>
+#include <gz/sim/Util.hh>
 
 #include <gz/msgs/Utility.hh>
 #include <gz/msgs/time.pb.h>
 #include <gz/msgs/pose.pb.h>
+#include <gz/msgs/pose_v.pb.h>
 #include <gz/msgs/twist.pb.h>
 #include <gz/msgs/vector3d.pb.h>
 #include <gz/transport/Node.hh>
@@ -48,7 +51,7 @@ private:
   gz::transport::Node::Publisher twist_pub_;
 
   gz::math::Pose3d pose_;
-  gz::math::Vector3d position_setpoint_{0.0, 0.0, 5.0};
+  gz::math::Vector3d position_setpoint_{0.0, 0.0, 3.0};
   double yaw_setpoint_ = 0.0;
 
   gz::math::Vector3d linear_velocity_cmd_{0.0, 0.0, 0.0};
@@ -71,7 +74,7 @@ private:
   double pos_err_z_sum_ = 0.0;
   double pos_err_z_prev_ = 0.0;
   double vz_kp_ = 60.0;
-  double vz_ki_ = 1.0;
+  double vz_ki_ = 0.0;
   double vz_kd_ = 60.0;
 
   double yaw_err_sum_ = 0.0;
@@ -150,7 +153,7 @@ private:
     auto yaw_sp = yaw_setpoint_;     // Setpoint
     auto yaw_pv = pose_.Rot().Yaw(); // Process Variable (actual)
     auto yaw_err = yaw_sp - yaw_pv;  // Error in world frame
-                                     //
+
     // Rotation Z-axis command
     double wz_cmd = 0.0;
     wz_cmd = wz_kp_ * yaw_err;
@@ -169,6 +172,14 @@ private:
     angular_velocity_cmd_.X() = 0.0;
     angular_velocity_cmd_.Y() = 0.0;
     angular_velocity_cmd_.Z() = wz_cmd;
+  }
+
+  /** Pose message callback **/
+  void PoseCallback(const gz::msgs::Pose_V &msg) {
+    for (auto pose_data : msg.pose()) {
+      pose_ = gz::msgs::Convert(pose_data);
+      break;
+    }
   }
 
   /** Position setpoint message callback **/
@@ -196,14 +207,15 @@ public:
     model_ = gz::sim::Model(entity);
 
     // Parse settings from SDF file
-    // clang-format off
     position_cmd_topic_ = parseString(sdf, "positionCommandTopic");
     yaw_cmd_topic_ = parseString(sdf, "yawCommandTopic");
     twist_cmd_topic_ = parseString(sdf, "twistCommandTopic");
-    // clang-format on
 
     // Publishers and subscribers
     twist_pub_ = node_.Advertise<gz::msgs::Twist>(twist_cmd_topic_);
+    node_.Subscribe("/x500/pose",
+                    &MavPositionControllerPlugin::PoseCallback,
+                    this);
     node_.Subscribe(position_cmd_topic_,
                     &MavPositionControllerPlugin::PositionSetpointCallback,
                     this);
@@ -215,6 +227,11 @@ public:
   /** Plugin Pre-Update **/
   void PreUpdate(const gz::sim::UpdateInfo &info,
                  gz::sim::EntityComponentManager &ecm) override {
+    auto pos = ecm.Component<gz::sim::components::Pose>(entity_);
+    if (!pos) {
+      ecm.CreateComponent(entity_, gz::sim::components::Pose());
+    }
+
     // Simulation paused?
     if (info.paused) {
       return;
@@ -226,14 +243,6 @@ public:
       return;
     }
 
-    // Get Model pose
-    auto comp = ecm.Component<gz::sim::components::Pose>(entity_);
-    if (comp == nullptr) {
-      ecm.CreateComponent(entity_, gz::sim::components::Pose());
-      return;
-    }
-    pose_ = comp->Data();
-
     // Calculate linear and angular velocity commands
     CalculateLinearVelocityCommands();
     CalculateAngularVelocityCommands();
@@ -242,11 +251,14 @@ public:
     dt_ = 0.0;
   }
 
-  /** Plugin Pose-Update **/
+  /** Plugin Post-Update **/
   void PostUpdate(const gz::sim::UpdateInfo &info,
                   const gz::sim::EntityComponentManager &ecm) override {
     // Message timestamp
     const gz::msgs::Time stamp = gz::msgs::Convert(info.simTime);
+
+    // Get Model pose
+    // pose_ = gz::sim::worldPose(model_.Entity(), ecm);
 
     // Publish twist message
     gz::msgs::Twist twist_msg;

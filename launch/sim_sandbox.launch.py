@@ -12,34 +12,40 @@ def ros_gz_bridge(topic, ros_type, gz_type, direction):
     cmd = ['ros2', 'run', 'ros_gz_bridge', 'parameter_bridge', param]
     return ExecuteProcess(cmd=cmd, output='screen')
 
-def ros_gz_image_bridge(topic):
+def ros_gz_image(topic):
     ros_type = "sensor_msgs/msg/Image"
     gz_type = "gz.msgs.Image"
     direction = "["
     return ros_gz_bridge(topic, ros_type, gz_type, direction)
 
-def ros_gz_gimbal_joint_cmd_bridge(topic):
+def ros_gz_float64(topic):
     ros_type = "std_msgs/msg/Float64"
     gz_type = "gz.msgs.Double"
     direction = "]"
     return ros_gz_bridge(topic, ros_type, gz_type, direction)
 
-def ros_gz_gimbal_joint_state_bridge(topic):
+def ros_gz_joint_state(topic):
     ros_type = "sensor_msgs/msg/JointState"
     gz_type = "gz.msgs.Model"
     direction = "["
     return ros_gz_bridge(topic, ros_type, gz_type, direction)
 
-def ros_gz_camera_info_bridge(topic):
+def ros_gz_camera_info(topic):
     ros_type = "sensor_msgs/msg/CameraInfo"
     gz_type = "gz.msgs.CameraInfo"
     direction = "["
     return ros_gz_bridge(topic, ros_type, gz_type, direction)
 
-def ros_gz_pose_bridge(topic):
+def ros_gz_pose_stamped(topic):
     ros_type = "geometry_msgs/msg/PoseStamped"
     gz_type = "gz.msgs.Pose"
     direction = "["
+    return ros_gz_bridge(topic, ros_type, gz_type, direction)
+
+def ros_gz_vector3(topic):
+    ros_type = "geometry_msgs/msg/Vector3"
+    gz_type = "gz.msgs.Vector3d"
+    direction = "]"
     return ros_gz_bridge(topic, ros_type, gz_type, direction)
 
 def generate_launch_description():
@@ -59,35 +65,45 @@ def generate_launch_description():
     config_path = os.path.join(proj_dir, "gazebo/configs/sim_sandbox.config")
 
     # Gazebo Simulator
-    cmd = ['gz', 'sim', gz_world, '-r', '-v', '--gui-config', config_path]
+    cmd = ['gz', 'sim', gz_world, '-v', '--gui-config', config_path]
     gz_proc = ExecuteProcess(cmd=cmd, output='screen')
 
     # Gazebo -> ROS2 bridges
-    # cam0_bridge = ros_gz_image_bridge("/gimbal/camera0")
-    # cam1_bridge = ros_gz_image_bridge("/gimbal/camera1")
-    # yaw_cmd_bridge = ros_gz_gimbal_joint_cmd_bridge("/gimbal/joint0_cmd")
-    # roll_cmd_bridge = ros_gz_gimbal_joint_cmd_bridge("/gimbal/joint1_cmd")
-    # pitch_cmd_bridge = ros_gz_gimbal_joint_cmd_bridge("/gimbal/joint2_cmd")
-    # yaw_state_bridge = ros_gz_gimbal_joint_state_bridge("/gimbal/joint0_state")
-    # roll_state_bridge = ros_gz_gimbal_joint_state_bridge("/gimbal/joint1_state")
-    # pitch_state_bridge = ros_gz_gimbal_joint_state_bridge("/gimbal/joint2_state")
-    # camera_info_bridge = ros_gz_camera_info_bridge("/gimbal/camera_info")
-    # aprilgrid_pose_bridge = ros_gz_pose_bridge("/model/aprilgrid/pose")
-    # gimbal_pose_bridge = ros_gz_pose_bridge("/model/gimbal/pose")
+    # -- Gimbal
+    cam0_bridge = ros_gz_image("/gimbal/camera0")
+    cam1_bridge = ros_gz_image("/gimbal/camera1")
+    yaw_cmd_bridge = ros_gz_float64("/gimbal/joint0/cmd")
+    roll_cmd_bridge = ros_gz_float64("/gimbal/joint1/cmd")
+    pitch_cmd_bridge = ros_gz_float64("/gimbal/joint2/cmd")
+    yaw_state_bridge = ros_gz_joint_state("/gimbal/joint0/state")
+    roll_state_bridge = ros_gz_joint_state("/gimbal/joint1/state")
+    pitch_state_bridge = ros_gz_joint_state("/gimbal/joint2/state")
+    camera_info_bridge = ros_gz_camera_info("/gimbal/camera_info")
+    gimbal_pose_bridge = ros_gz_pose_stamped("/model/gimbal/pose")
+    # -- MAV
+    pos_cmd_bridge = ros_gz_vector3("/x500/position/cmd")
+    yaw_cmd_bridge = ros_gz_float64("/x500/yaw/cmd")
+    # -- AprilGrid
+    # aprilgrid_pose_bridge = ros_gz_pose_stamped("/model/aprilgrid/pose")
 
     # Launch
     descs = []
+    # -- Gimbal
     descs.append(gz_proc)
-    # descs.append(cam0_bridge)
-    # descs.append(cam1_bridge)
+    descs.append(cam0_bridge)
+    descs.append(cam1_bridge)
+    descs.append(yaw_cmd_bridge)
+    descs.append(roll_cmd_bridge)
+    descs.append(pitch_cmd_bridge)
+    descs.append(yaw_state_bridge)
+    descs.append(roll_state_bridge)
+    descs.append(pitch_state_bridge)
+    descs.append(camera_info_bridge)
+    descs.append(gimbal_pose_bridge)
+    # -- MAV
+    descs.append(pos_cmd_bridge)
     # descs.append(yaw_cmd_bridge)
-    # descs.append(roll_cmd_bridge)
-    # descs.append(pitch_cmd_bridge)
-    # descs.append(yaw_state_bridge)
-    # descs.append(roll_state_bridge)
-    # descs.append(pitch_state_bridge)
-    # descs.append(camera_info_bridge)
+    # -- AprilGrid
     # descs.append(aprilgrid_pose_bridge)
-    # descs.append(gimbal_pose_bridge)
 
     return LaunchDescription(descs)

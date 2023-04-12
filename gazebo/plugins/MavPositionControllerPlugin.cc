@@ -51,7 +51,7 @@ private:
   gz::transport::Node::Publisher twist_pub_;
 
   gz::math::Pose3d pose_;
-  gz::math::Vector3d position_setpoint_{0.0, 0.0, 3.0};
+  gz::math::Vector3d position_setpoint_{0.0, 0.0, 0.0};
   double yaw_setpoint_ = 0.0;
 
   gz::math::Vector3d linear_velocity_cmd_{0.0, 0.0, 0.0};

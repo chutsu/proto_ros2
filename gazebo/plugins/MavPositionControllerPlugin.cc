@@ -24,15 +24,7 @@
 
 #include <proto.h>
 
-std::string parseString(const std::shared_ptr<const sdf::Element> &sdf,
-                        const std::string &element_name) {
-  if (sdf->HasElement(element_name)) {
-    return sdf->Get<std::string>(element_name);
-  } else {
-    gzerr << "Failed to parse [" << element_name << "]!";
-    exit(-1);
-  }
-}
+#include "GazeboPluginUtils.hh"
 
 class MavPositionControllerPlugin : public gz::sim::System,
                                     public gz::sim::ISystemConfigure,
@@ -40,6 +32,7 @@ class MavPositionControllerPlugin : public gz::sim::System,
                                     public gz::sim::ISystemPostUpdate {
 private:
   // Gazebo topics
+  std::string pose_state_topic_;
   std::string position_cmd_topic_;
   std::string yaw_cmd_topic_;
   std::string twist_cmd_topic_;
@@ -207,13 +200,14 @@ public:
     model_ = gz::sim::Model(entity);
 
     // Parse settings from SDF file
+    pose_state_topic_ = parseString(sdf, "poseStateTopic");
     position_cmd_topic_ = parseString(sdf, "positionCommandTopic");
     yaw_cmd_topic_ = parseString(sdf, "yawCommandTopic");
     twist_cmd_topic_ = parseString(sdf, "twistCommandTopic");
 
     // Publishers and subscribers
     twist_pub_ = node_.Advertise<gz::msgs::Twist>(twist_cmd_topic_);
-    node_.Subscribe("/x500/pose",
+    node_.Subscribe(pose_state_topic_,
                     &MavPositionControllerPlugin::PoseCallback,
                     this);
     node_.Subscribe(position_cmd_topic_,

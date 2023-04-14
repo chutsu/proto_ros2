@@ -87,6 +87,10 @@ SET(PROTO_DEPS
     ${OpenCV_LIBS}
     proto)
 
+ADD_LIBRARY(GimbalControllerPlugin SHARED gazebo/plugins/GimbalControllerPlugin.cc)
+TARGET_LINK_LIBRARIES(GimbalControllerPlugin ${GZ_DEPS})
+INSTALL(TARGETS GimbalControllerPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
+
 ADD_LIBRARY(HelloWorldPlugin SHARED gazebo/plugins/HelloWorldPlugin.cc)
 TARGET_LINK_LIBRARIES(HelloWorldPlugin ${GZ_DEPS})
 INSTALL(TARGETS HelloWorldPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
@@ -94,10 +98,6 @@ INSTALL(TARGETS HelloWorldPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugin
 ADD_LIBRARY(ModelPlugin SHARED gazebo/plugins/ModelPlugin.cc)
 TARGET_LINK_LIBRARIES(ModelPlugin ${GZ_DEPS})
 INSTALL(TARGETS ModelPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
-
-ADD_LIBRARY(MavPlugin SHARED gazebo/plugins/MavPlugin.cc)
-TARGET_LINK_LIBRARIES(MavPlugin ${GZ_DEPS} ${PROTO_DEPS})
-INSTALL(TARGETS MavPlugin DESTINATION share/${PROJECT_NAME}/gazebo/plugins)
 
 ADD_LIBRARY(MavPositionControllerPlugin SHARED gazebo/plugins/MavPositionControllerPlugin.cc)
 TARGET_LINK_LIBRARIES(MavPositionControllerPlugin ${GZ_DEPS} ${PROTO_DEPS})

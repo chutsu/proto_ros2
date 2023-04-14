@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <sdf version="1.9">
   <model name="gimbal">
-
     <!-- Gimbal base -->
     <link name="gimbal_base">
       <gravity>0</gravity>
@@ -209,11 +208,11 @@
       </sensor>
     </link>
 
-    <!-- World to gimbal base joint  -->
-    <joint name="world_fixed" type="fixed">
-      <parent>world</parent>
-      <child>gimbal_base</child>
-    </joint>
+    <!-- <!-1- World to gimbal base joint  -1-> -->
+    <!-- <joint name="world_fixed" type="fixed"> -->
+    <!--   <parent>world</parent> -->
+    <!--   <child>gimbal_base</child> -->
+    <!-- </joint> -->
 
     <!-- Yaw joint -->
     <joint name="joint_yaw" type="revolute">

@@ -1149,9 +1149,12 @@
       <joint0_cmd_topic>/gimbal/joint0/cmd</joint0_cmd_topic>
       <joint1_cmd_topic>/gimbal/joint1/cmd</joint1_cmd_topic>
       <joint2_cmd_topic>/gimbal/joint2/cmd</joint2_cmd_topic>
-      <gimbal_mode_topic>/gimbal/mode</gimbal_mode_topic>
-      <target_point_topic>/gimbal/target_point/cmd</target_point_topic>
-      <target_attitude_topic>/gimbal/target_attitude/cmd</target_attitude_topic>
+      <gimbal_mode_state_topic>/gimbal/mode/state</gimbal_mode_state_topic>
+      <target_point_state_topic>/gimbal/target_point/state</target_point_state_topic>
+      <target_attitude_state_topic>/gimbal/target_attitude/state</target_attitude_state_topic>
+      <gimbal_mode_cmd_topic>/gimbal/mode/cmd</gimbal_mode_cmd_topic>
+      <target_point_cmd_topic>/gimbal/target_point/cmd</target_point_cmd_topic>
+      <target_attitude_cmd_topic>/gimbal/target_attitude/cmd</target_attitude_cmd_topic>
     </plugin>
   </model>
 </sdf>

@@ -35,7 +35,12 @@ sim_calib:  ## Run calibration simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 sim_calib.launch.py
+		&& ros2 launch proto_ros2 proto_ros2.launch.py \
+			gz_world:=sim_calib.sdf \
+			enable_rqt:=false \
+			has_mav:=true \
+			has_gimbal:=true \
+			has_aprilgrid:=true
 
 sim_gimbal: ## Run gimbal simulation
 	@cd ${ROS2_WS} \
@@ -43,20 +48,24 @@ sim_gimbal: ## Run gimbal simulation
 		&& source install/setup.bash \
 		&& ros2 run proto_ros2 gz_gimbal
 
-sim_mav:  ## Run MAV simulation
-	@cd ${ROS2_WS} \
-		&& colcon build --packages-select proto_ros2 \
-		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 sim_mav.launch.py
-
 sim_castle:  ## Run castle simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 sim_castle.launch.py
+		&& ros2 launch proto_ros2 proto_ros2.launch.py \
+			gz_world:=sim_castle.sdf \
+			enable_rqt:=true \
+			has_mav:=true \
+			has_gimbal:=true \
+			has_aprilgrid:=false
 
 sim_sandbox:  ## Run sandbox simulation
 	@cd ${ROS2_WS} \
 		&& colcon build --packages-select proto_ros2 \
 		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 sim_sandbox.launch.py
+		&& ros2 launch proto_ros2 proto_ros2.launch.py \
+			gz_world:=sim_sandbox.sdf \
+			enable_rqt:=true \
+			has_mav:=true \
+			has_gimbal:=true \
+			has_aprilgrid:=true

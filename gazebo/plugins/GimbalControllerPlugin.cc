@@ -35,6 +35,9 @@ private:
   gz::sim::Entity entity_;
   gz::sim::Model model_;
   gz::transport::Node node_;
+  gz::transport::Node::Publisher mode_state_pub_;
+  gz::transport::Node::Publisher target_point_state_pub_;
+  gz::transport::Node::Publisher target_attitude_state_pub_;
   gz::transport::Node::Publisher joint0_pub_;
   gz::transport::Node::Publisher joint1_pub_;
   gz::transport::Node::Publisher joint2_pub_;
@@ -73,27 +76,30 @@ public:
     model_ = gz::sim::Model(entity);
 
     // Parse joint topics from SDF file
+    // clang-format off
     const auto joint0_cmd_topic = parseString(sdf, "joint0_cmd_topic");
     const auto joint1_cmd_topic = parseString(sdf, "joint1_cmd_topic");
     const auto joint2_cmd_topic = parseString(sdf, "joint2_cmd_topic");
-    const auto gimbal_mode_topic = parseString(sdf, "gimbal_mode_topic");
-    const auto target_point_topic = parseString(sdf, "target_point_topic");
-    const auto target_attitude_topic =
-        parseString(sdf, "target_attitude_topic");
+    const auto gimbal_mode_state_topic = parseString(sdf, "gimbal_mode_state_topic");
+    const auto target_point_state_topic = parseString(sdf, "target_point_state_topic");
+    const auto target_attitude_state_topic = parseString(sdf, "target_attitude_state_topic");
+    const auto gimbal_mode_cmd_topic = parseString(sdf, "gimbal_mode_cmd_topic");
+    const auto target_point_cmd_topic = parseString(sdf, "target_point_cmd_topic");
+    const auto target_attitude_cmd_topic = parseString(sdf, "target_attitude_cmd_topic");
+    // clang-format on
 
     // Publishers and subscribers
+    // clang-format off
     joint0_pub_ = node_.Advertise<gz::msgs::Double>(joint0_cmd_topic);
     joint1_pub_ = node_.Advertise<gz::msgs::Double>(joint1_cmd_topic);
     joint2_pub_ = node_.Advertise<gz::msgs::Double>(joint2_cmd_topic);
-    node_.Subscribe(gimbal_mode_topic,
-                    &GimbalControllerPlugin::GimbalModeCallback,
-                    this);
-    node_.Subscribe(target_point_topic,
-                    &GimbalControllerPlugin::TargetPointCallback,
-                    this);
-    node_.Subscribe(target_attitude_topic,
-                    &GimbalControllerPlugin::TargetAttitudeCallback,
-                    this);
+    mode_state_pub_ = node_.Advertise<gz::msgs::Int32>(gimbal_mode_state_topic);
+    target_point_state_pub_ = node_.Advertise<gz::msgs::Vector3d>(target_point_state_topic);
+    target_attitude_state_pub_ = node_.Advertise<gz::msgs::Vector3d>(target_attitude_state_topic);
+    node_.Subscribe(gimbal_mode_cmd_topic, &GimbalControllerPlugin::GimbalModeCallback, this);
+    node_.Subscribe(target_point_cmd_topic, &GimbalControllerPlugin::TargetPointCallback, this);
+    node_.Subscribe(target_attitude_cmd_topic, &GimbalControllerPlugin::TargetAttitudeCallback, this);
+    // clang-format on
   }
 
   /** Plugin Pre-Update **/
@@ -126,6 +132,7 @@ public:
       gz::msgs::Double joint1_msg;
       gz::msgs::Double joint2_msg;
 
+      // -- Publish joint commnds
       const gz::msgs::Time stamp = gz::msgs::Convert(info.simTime);
       joint0_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
       joint1_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
@@ -138,6 +145,28 @@ public:
       joint0_pub_.Publish(joint0_msg);
       joint1_pub_.Publish(joint1_msg);
       joint2_pub_.Publish(joint2_msg);
+
+      // -- Publish gimbal mode
+      gz::msgs::Int32 mode_msg;
+      mode_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+      mode_msg.set_data(mode_);
+      mode_state_pub_.Publish(mode_msg);
+
+      // -- Publish target point
+      gz::msgs::Vector3d target_point_msg;
+      target_point_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+      target_point_msg.set_x(target_point_.X());
+      target_point_msg.set_y(target_point_.Y());
+      target_point_msg.set_z(target_point_.Z());
+      target_point_state_pub_.Publish(target_point_msg);
+
+      // -- Publish target attitude
+      gz::msgs::Vector3d target_attitude_msg;
+      target_attitude_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+      target_attitude_msg.set_x(target_attitude_.X());
+      target_attitude_msg.set_y(target_attitude_.Y());
+      target_attitude_msg.set_z(target_attitude_.Z());
+      target_attitude_state_pub_.Publish(target_attitude_msg);
   }
 };
 

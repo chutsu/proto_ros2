@@ -2,10 +2,28 @@
 import os
 
 from ament_index_python.packages import get_package_share_directory
+import launch
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
-from launch.substitutions import LaunchConfiguration
+from launch.actions import OpaqueFunction
 from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
+
+def launch_argument(context, name, data_type):
+    str_data = LaunchConfiguration(name).perform(context)
+
+    if data_type == str:
+        return str_data
+    elif data_type == bool:
+        print(str_data)
+        return str_data == "true"
+    elif data_type == int:
+        return int(str_data)
+    elif data_type == float:
+        return float(str_data)
+    else:
+        raise RunTimeError(f"Invalid data type [{data_type}]")
 
 
 def ros_gz_bridge(topic, ros_type, gz_type, io):
@@ -91,13 +109,13 @@ def rqt_proc():
     return ExecuteProcess(cmd=['rqt'], output='screen')
 
 
-def generate_launch_description():
+def launch_setup(context, *args, **kwargs):
     # Settings
-    gz_world = LaunchConfiguration("gz_world")
-    enable_rqt = LaunchConfiguration("enable_rqt")
-    has_mav = LaunchConfiguration("has_mav")
-    has_gimbal = LaunchConfiguration("has_gimbal")
-    has_aprilgrid = LaunchConfiguration("has_aprilgrid")
+    gz_world = launch_argument(context, "gz_world", str)
+    enable_rqt = launch_argument(context, "enable_rqt", bool)
+    has_mav = launch_argument(context, "has_mav", bool)
+    has_gimbal = launch_argument(context, "has_gimbal", bool)
+    has_aprilgrid = launch_argument(context, "has_aprilgrid", bool)
 
     # Set gazebo environment variables
     pkg_share_dir = get_package_share_directory('proto_ros2')
@@ -135,4 +153,18 @@ def generate_launch_description():
     if has_aprilgrid:
         descs.extend(ros_gz_aprilgrid())
 
-    return LaunchDescription(descs)
+    return descs
+
+
+def generate_launch_description():
+    # ROS2 has made parsing launch arguments incredibly complicated.
+    # One cannot get the launch arguments with out this work-around:
+    # https://answers.ros.org/question/322636/ros2-access-current-launchconfiguration/?answer=359167#post-id-359167
+    return launch.LaunchDescription([
+        DeclareLaunchArgument("gz_world", default_value="sim_sandbox.sdf"),
+        DeclareLaunchArgument("enable_rqt", default_value='False'),
+        DeclareLaunchArgument("has_mav", default_value='False'),
+        DeclareLaunchArgument("has_gimbal", default_value='False'),
+        DeclareLaunchArgument("has_aprilgrid", default_value='False'),
+        OpaqueFunction(function = launch_setup)
+    ])

@@ -110,29 +110,38 @@ public:
   /** Plugin Pose-Update **/
   void PostUpdate(const gz::sim::UpdateInfo &info,
                   const gz::sim::EntityComponentManager &ecm) override {
-      auto pose = gz::sim::worldPose(model_.Entity(), ecm);
+      double joint0_cmd = 0.0;
+      double joint1_cmd = 0.0;
+      double joint2_cmd = 0.0;
 
-      const auto roll_setpoint = target_attitude_.X();
-      const auto pitch_setpoint = target_attitude_.Y();
-      const auto yaw_setpoint = target_attitude_.Z();
+      if (mode_ == GIMBAL_STABILIZATION_MODE) {
+        const auto roll_setpoint = target_attitude_.X();
+        const auto pitch_setpoint = target_attitude_.Y();
+        const auto yaw_setpoint = target_attitude_.Z();
 
-      const auto roll_actual = pose.Rot().Roll();
-      const auto pitch_actual = pose.Rot().Pitch();
-      const auto yaw_actual = pose.Rot().Yaw();
+        const auto pose = gz::sim::worldPose(model_.Entity(), ecm);
+        const auto roll_actual = pose.Rot().Roll();
+        const auto pitch_actual = pose.Rot().Pitch();
+        const auto yaw_actual = pose.Rot().Yaw();
 
-      const auto roll_error = roll_setpoint - roll_actual;
-      const auto pitch_error = pitch_setpoint - pitch_actual;
-      const auto yaw_error = yaw_setpoint - yaw_actual;
+        const auto roll_error = roll_setpoint - roll_actual;
+        const auto pitch_error = pitch_setpoint - pitch_actual;
+        const auto yaw_error = yaw_setpoint - yaw_actual;
 
-      const auto joint0_cmd = -yaw_error;
-      const auto joint1_cmd = roll_error;
-      const auto joint2_cmd = pitch_error;
+        joint0_cmd = -yaw_error;
+        joint1_cmd = roll_error;
+        joint2_cmd = pitch_error;
 
+      } else if (mode_ == GIMBAL_TRACKING_MODE) {
+
+
+      }
+
+      // -- Publish joint commnds
       gz::msgs::Double joint0_msg;
       gz::msgs::Double joint1_msg;
       gz::msgs::Double joint2_msg;
 
-      // -- Publish joint commnds
       const gz::msgs::Time stamp = gz::msgs::Convert(info.simTime);
       joint0_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
       joint1_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);

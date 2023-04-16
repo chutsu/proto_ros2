@@ -33,7 +33,7 @@ class MavPositionControllerPlugin : public gz::sim::System,
 private:
   // Gazebo topics
   std::string pose_state_topic_;
-  std::string position_cmd_topic_;
+  std::string pos_cmd_topic_;
   std::string yaw_cmd_topic_;
   std::string twist_cmd_topic_;
 
@@ -56,13 +56,13 @@ private:
   double pos_err_x_prev_ = 0.0;
   double vx_kp_ = 1.0;
   double vx_ki_ = 0.0;
-  double vx_kd_ = 0.8;
+  double vx_kd_ = 0.5;
 
   double pos_err_y_sum_ = 0.0;
   double pos_err_y_prev_ = 0.0;
   double vy_kp_ = 1.0;
   double vy_ki_ = 0.0;
-  double vy_kd_ = 0.8;
+  double vy_kd_ = 0.5;
 
   double pos_err_z_sum_ = 0.0;
   double pos_err_z_prev_ = 0.0;
@@ -76,8 +76,8 @@ private:
   double wz_ki_ = 0.0;
   double wz_kd_ = 1.0;
 
-  double vx_limits_[2] = {-5.0, 5.0};
-  double vy_limits_[2] = {-5.0, 5.0};
+  double vx_limits_[2] = {-10.0, 10.0};
+  double vy_limits_[2] = {-10.0, 10.0};
   double vz_limits_[2] = {-10.0, 10.0};
   double wz_limits_[2] = {-10.0, 10.0};
 
@@ -199,23 +199,25 @@ public:
     entity_ = entity;
     model_ = gz::sim::Model(entity);
 
+    // Set initial setpoint
+    const auto pose = gz::sim::worldPose(model_.Entity(), ecm);
+    position_setpoint_ = pose.Pos();
+    position_setpoint_.Z() = 0.0;  // Assume the drone is on the ground
+    yaw_setpoint_ = pose.Rot().Yaw();
+
     // Parse settings from SDF file
-    pose_state_topic_ = parseString(sdf, "poseStateTopic");
-    position_cmd_topic_ = parseString(sdf, "positionCommandTopic");
-    yaw_cmd_topic_ = parseString(sdf, "yawCommandTopic");
-    twist_cmd_topic_ = parseString(sdf, "twistCommandTopic");
+    pose_state_topic_ = parseString(sdf, "pose_state_topic");
+    pos_cmd_topic_ = parseString(sdf, "pos_cmd_topic");
+    yaw_cmd_topic_ = parseString(sdf, "yaw_cmd_topic");
+    twist_cmd_topic_ = parseString(sdf, "twist_cmd_topic");
 
     // Publishers and subscribers
+    // clang-format off
     twist_pub_ = node_.Advertise<gz::msgs::Twist>(twist_cmd_topic_);
-    node_.Subscribe(pose_state_topic_,
-                    &MavPositionControllerPlugin::PoseCallback,
-                    this);
-    node_.Subscribe(position_cmd_topic_,
-                    &MavPositionControllerPlugin::PositionSetpointCallback,
-                    this);
-    node_.Subscribe(yaw_cmd_topic_,
-                    &MavPositionControllerPlugin::YawSetpointCallback,
-                    this);
+    node_.Subscribe(pose_state_topic_, &MavPositionControllerPlugin::PoseCallback, this);
+    node_.Subscribe(pos_cmd_topic_, &MavPositionControllerPlugin::PositionSetpointCallback, this);
+    node_.Subscribe(yaw_cmd_topic_, &MavPositionControllerPlugin::YawSetpointCallback, this);
+    // clang-format on
   }
 
   /** Plugin Pre-Update **/

@@ -681,10 +681,10 @@
     <plugin
         filename="libMavPositionControllerPlugin"
         name="MavPositionControllerPlugin">
-      <poseStateTopic>/x500/pose/state</poseStateTopic>
-      <positionCommandTopic>/x500/position/cmd</positionCommandTopic>
-      <yawCommandTopic>/x500/yaw/cmd</yawCommandTopic>
-      <twistCommandTopic>/x500/twist/cmd</twistCommandTopic>
+      <pose_state_topic>/x500/pose/state</pose_state_topic>
+      <pos_cmd_topic>/x500/position/cmd</pos_cmd_topic>
+      <yaw_cmd_topic>/x500/yaw/cmd</yaw_cmd_topic>
+      <twist_cmd_topic>/x500/twist/cmd</twist_cmd_topic>
     </plugin>
 
     <!-- GIMBAL -->

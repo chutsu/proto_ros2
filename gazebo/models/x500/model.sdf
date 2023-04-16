@@ -690,7 +690,7 @@
     <!-- GIMBAL -->
     <!-- Gimbal base -->
     <link name="gimbal_base">
-      <pose relative_to="base_link">0.1 0.0 -0.02 3.1415 0.0 0.0</pose>
+      <pose relative_to="base_link">-0.05 0.0 -0.02 3.1415 0.0 0.0</pose>
       <inertial>
         <inertia>
           <ixx>0.001</ixx>
@@ -1015,14 +1015,14 @@
 
       <inertial>
         <inertia>
-          <ixx>0.000001</ixx>
+          <ixx>0.001</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.000001</iyy>
+          <iyy>0.001</iyy>
           <iyz>0</iyz>
-          <izz>0.000001</izz>
+          <izz>0.001</izz>
         </inertia>
-        <mass>0.00001</mass>
+        <mass>0.0001</mass>
       </inertial>
 
       <visual name="gimbal_pitch_bar_visual">
@@ -1128,9 +1128,9 @@
         name="gz::sim::systems::JointPositionController">
       <joint_name>gimbal_pitch_joint</joint_name>
       <topic>/gimbal/joint2/cmd</topic>
-      <p_gain>10</p_gain>
+      <p_gain>100</p_gain>
       <i_gain>0.0</i_gain>
-      <d_gain>0.5</d_gain>
+      <d_gain>1</d_gain>
       <i_max>1</i_max>
       <i_min>-1</i_min>
       <cmd_max>1000</cmd_max>

@@ -37,6 +37,7 @@ sim_calib:  ## Run calibration simulation
 		&& source install/setup.bash \
 		&& ros2 launch proto_ros2 proto_ros2.launch.py \
 			gz_world:=sim_calib.sdf \
+			enable_headless:=true \
 			enable_rqt:=false \
 			has_mav:=true \
 			has_gimbal:=true \

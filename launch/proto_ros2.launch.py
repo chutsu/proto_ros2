@@ -16,7 +16,6 @@ def launch_argument(context, name, data_type):
     if data_type == str:
         return str_data
     elif data_type == bool:
-        print(str_data)
         return str_data == "true"
     elif data_type == int:
         return int(str_data)
@@ -112,6 +111,7 @@ def rqt_proc():
 def launch_setup(context, *args, **kwargs):
     # Settings
     gz_world = launch_argument(context, "gz_world", str)
+    enable_headless = launch_argument(context, "enable_headless", bool)
     enable_rqt = launch_argument(context, "enable_rqt", bool)
     has_mav = launch_argument(context, "has_mav", bool)
     has_gimbal = launch_argument(context, "has_gimbal", bool)
@@ -131,10 +131,15 @@ def launch_setup(context, *args, **kwargs):
 
     # Gazebo Simulator
     cmd = ['gz', 'sim', gz_world, '-v', '-r', '--gui-config', config_path]
+    if enable_headless:
+        cmd.append("-s")
+        cmd.append("--headless-rendering")
     gz_proc = ExecuteProcess(cmd=cmd, output='screen')
 
     # Processes
     descs = []
+
+    # -- Gazebo Simulator
     descs.append(gz_proc)
 
     # -- RQT
@@ -162,6 +167,7 @@ def generate_launch_description():
     # https://answers.ros.org/question/322636/ros2-access-current-launchconfiguration/?answer=359167#post-id-359167
     return launch.LaunchDescription([
         DeclareLaunchArgument("gz_world", default_value="sim_sandbox.sdf"),
+        DeclareLaunchArgument("enable_headless", default_value='False'),
         DeclareLaunchArgument("enable_rqt", default_value='False'),
         DeclareLaunchArgument("has_mav", default_value='False'),
         DeclareLaunchArgument("has_gimbal", default_value='False'),

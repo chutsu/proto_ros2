@@ -65,5 +65,11 @@
       <uri>model://x500</uri>
       <pose>0 0 0.235 0 0 0</pose>
     </include>
+
+    <!-- <include> -->
+    <!--   <static>true</static> -->
+    <!--   <uri>model://gimbal</uri> -->
+    <!--   <pose>0 0 0.1 3.14 0 0</pose> -->
+    <!-- </include> -->
   </world>
 </sdf>

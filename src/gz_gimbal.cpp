@@ -499,17 +499,17 @@ public:
     auto grid_cb = std::bind(&GZGimbal::aprilgridCallback, this, _1);
     auto gimbal_cb = std::bind(&GZGimbal::gimbalCallback, this, _1);
     auto meas_cb = std::bind(&GZGimbal::measurementCallback, this, _1, _2, _3, _4, _5);
-    joint0_cmd_ = create_publisher<Float64>("/gimbal/joint0_cmd", 1);
-    joint1_cmd_ = create_publisher<Float64>("/gimbal/joint1_cmd", 1);
-    joint2_cmd_ = create_publisher<Float64>("/gimbal/joint2_cmd", 1);
+    joint0_cmd_ = create_publisher<Float64>("/gimbal/joint0/cmd", 1);
+    joint1_cmd_ = create_publisher<Float64>("/gimbal/joint1/cmd", 1);
+    joint2_cmd_ = create_publisher<Float64>("/gimbal/joint2/cmd", 1);
     camera_info_ = create_subscription<CameraInfo>("/gimbal/camera_info", 1, info_cb);
     aprilgrid_pose_ = create_subscription<PoseStamped>("/model/aprilgrid/pose", 1, grid_cb);
     gimbal_pose_ = create_subscription<PoseStamped>("/model/gimbal/pose", 1, gimbal_cb);
     cam0_.subscribe(this, "/gimbal/camera0");
     cam1_.subscribe(this, "/gimbal/camera1");
-    joint0_state_.subscribe(this, "/gimbal/joint0_state");
-    joint1_state_.subscribe(this, "/gimbal/joint1_state");
-    joint2_state_.subscribe(this, "/gimbal/joint2_state");
+    joint0_state_.subscribe(this, "/gimbal/joint0/state");
+    joint1_state_.subscribe(this, "/gimbal/joint1/state");
+    joint2_state_.subscribe(this, "/gimbal/joint2/state");
     sync_ = std::make_shared<message_filters::Synchronizer<approx_policy>>(
       approx_policy(10),
       cam0_,

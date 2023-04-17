@@ -717,13 +717,13 @@
         </material>
       </visual>
 
-      <collision name="gimbal_base_collision">
-        <geometry>
-          <box>
-            <size>0.1 0.1 0.01</size>
-          </box>
-        </geometry>
-      </collision>
+      <!-- <collision name="gimbal_base_collision"> -->
+      <!--   <geometry> -->
+      <!--     <box> -->
+      <!--       <size>0.1 0.1 0.01</size> -->
+      <!--     </box> -->
+      <!--   </geometry> -->
+      <!-- </collision> -->
     </link>
 
     <!-- base_link to gimbal_base joint -->
@@ -734,7 +734,8 @@
 
     <!-- Gimbal yaw motor -->
     <link name="gimbal_yaw">
-      <pose relative_to="gimbal_base">0.0 0.0 0.01225 0.0 0.0 0.0</pose>
+      <!-- <pose relative_to="gimbal_base">0.0 0.0 0.01225 0.0 0.0 0.0</pose> -->
+      <pose relative_to="gimbal_base">0.0 0.0 0.0 0.0 0.0 0.0</pose>
 
       <inertial>
         <inertia>
@@ -763,14 +764,14 @@
         </material>
       </visual>
 
-      <collision name="gimbal_yaw_collision">
-        <geometry>
-          <cylinder>
-            <radius>0.015</radius>
-            <length>0.015</length>
-          </cylinder>
-        </geometry>
-      </collision>
+      <!-- <collision name="gimbal_yaw_collision"> -->
+      <!--   <geometry> -->
+      <!--     <cylinder> -->
+      <!--       <radius>0.015</radius> -->
+      <!--       <length>0.015</length> -->
+      <!--     </cylinder> -->
+      <!--   </geometry> -->
+      <!-- </collision> -->
     </link>
 
     <!-- Gimbal base to yaw joint -->
@@ -840,14 +841,14 @@
         </material>
       </visual>
 
-      <collision name="gimbal_yaw_bar_collision">
-        <pose>0.0 0.0 0.0 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.02 0.02 0.05</size>
-          </box>
-        </geometry>
-      </collision>
+      <!-- <collision name="gimbal_yaw_bar_collision"> -->
+      <!--   <pose>0.0 0.0 0.0 0 0 0</pose> -->
+      <!--   <geometry> -->
+      <!--     <box> -->
+      <!--       <size>0.02 0.02 0.05</size> -->
+      <!--     </box> -->
+      <!--   </geometry> -->
+      <!-- </collision> -->
     </link>
 
     <!-- Gimbal roll motor -->
@@ -1155,6 +1156,15 @@
       <gimbal_mode_cmd_topic>/gimbal/mode/cmd</gimbal_mode_cmd_topic>
       <target_point_cmd_topic>/gimbal/target_point/cmd</target_point_cmd_topic>
       <target_attitude_cmd_topic>/gimbal/target_attitude/cmd</target_attitude_cmd_topic>
+    </plugin>
+
+    <plugin
+      filename="gz-sim-pose-publisher-system"
+      name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>false</publish_link_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>true</publish_nested_model_pose>
     </plugin>
   </model>
 </sdf>

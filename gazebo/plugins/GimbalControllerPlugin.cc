@@ -1,6 +1,7 @@
 #include <memory>
 
 #include <gz/math/Pose3.hh>
+#include <gz/math/Matrix4.hh>
 
 #include <gz/plugin/Register.hh>
 #include <gz/sim/Model.hh>
@@ -34,6 +35,12 @@ private:
   // Fields
   gz::sim::Entity entity_;
   gz::sim::Model model_;
+  gz::sim::Entity joint0_;
+  gz::sim::Entity joint1_;
+  gz::sim::Entity joint2_;
+  gz::sim::Entity cam0_;
+  gz::sim::Entity cam1_;
+
   gz::transport::Node node_;
   gz::transport::Node::Publisher mode_state_pub_;
   gz::transport::Node::Publisher target_point_state_pub_;
@@ -45,6 +52,64 @@ private:
   int mode_ = GIMBAL_STABILIZATION_MODE;
   gz::math::Vector3d target_point_{0.0, 0.0, 0.0};
   gz::math::Vector3d target_attitude_{0.0, 0.0, 0.0};
+
+  /** Print pose **/
+  void PrintPose(const std::string &prefix, const gz::math::Matrix4d &tf) const {
+    const auto rx = tf.Translation().X();
+    const auto ry = tf.Translation().Y();
+    const auto rz = tf.Translation().Z();
+
+    const auto qw = tf.Rotation().W();
+    const auto qx = tf.Rotation().X();
+    const auto qy = tf.Rotation().Y();
+    const auto qz = tf.Rotation().Z();
+
+    std::cout << prefix + ": ";
+    std::cout << rx << ", ";
+    std::cout << ry << ", ";
+    std::cout << rz << ", ";
+    std::cout << qx << ", ";
+    std::cout << qy << ", ";
+    std::cout << qz << ", ";
+    std::cout << qw << "  ";
+    std::cout << "# x, y, z, qx, qy, qz, qw" << std::endl;
+  }
+
+  /** Print gimbal kinematics **/
+  void PrintGimbalKinematics(const gz::sim::EntityComponentManager &ecm) const {
+    const auto pose_WB = gz::sim::worldPose(model_.Entity(), ecm);
+    const auto pose_WM0 = gz::sim::worldPose(joint0_, ecm);
+    const auto pose_WM1 = gz::sim::worldPose(joint1_, ecm);
+    const auto pose_WM2 = gz::sim::worldPose(joint2_, ecm);
+    const auto pose_WC0 = gz::sim::worldPose(cam0_, ecm);
+    const auto pose_WC1 = gz::sim::worldPose(cam1_, ecm);
+
+    const gz::math::Matrix4 T_WB{pose_WB};
+    const gz::math::Matrix4 T_WM0{pose_WM0};
+    const gz::math::Matrix4 T_WM1{pose_WM1};
+    const gz::math::Matrix4 T_WM2{pose_WM2};
+    const gz::math::Matrix4 T_WC0{pose_WC0};
+    const gz::math::Matrix4 T_WC1{pose_WC1};
+
+    const gz::math::Quaterniond cam_rot{-M_PI / 2, 0.0, -M_PI / 2.0};
+    const gz::math::Vector3d cam_trans{0.0, 0.0, 0.0};
+    const gz::math::Pose3d cam_correction{cam_trans, cam_rot};
+    const gz::math::Matrix4d T_correction{cam_correction};
+
+    const auto T_BM0 = T_WB.Inverse() * T_WM0;
+    const auto T_M0M1 = T_WM0.Inverse() * T_WM1;
+    const auto T_M1M2 = T_WM1.Inverse() * T_WM2;
+    const auto T_M2C0 = T_WM2.Inverse() * T_WC0 * T_correction;
+    const auto T_M2C1 = T_WM2.Inverse() * T_WC1 * T_correction;
+
+    std::cout << "Gimbal Kinematics:" << std::endl;
+    PrintPose("T_WB", T_WB);
+    PrintPose("T_BM0", T_BM0);
+    PrintPose("T_M0M1", T_M0M1);
+    PrintPose("T_M1M2", T_M1M2);
+    PrintPose("T_M2C0", T_M2C0);
+    PrintPose("T_M2C1", T_M2C1);
+  }
 
   /** Gimbal mode message callback **/
   void GimbalModeCallback(const gz::msgs::Int32 &msg) {
@@ -74,6 +139,12 @@ public:
     // Entity and model
     entity_ = entity;
     model_ = gz::sim::Model(entity);
+    joint0_ = model_.LinkByName(ecm, "gimbal_yaw");
+    joint1_ = model_.LinkByName(ecm, "gimbal_roll");
+    joint2_ = model_.LinkByName(ecm, "gimbal_pitch");
+    cam0_ = *gz::sim::entitiesFromScopedName("camera0", ecm).begin();
+    cam1_ = *gz::sim::entitiesFromScopedName("camera1", ecm).begin();
+    PrintGimbalKinematics(ecm);
 
     // Parse joint topics from SDF file
     // clang-format off

@@ -25,52 +25,51 @@ def launch_argument(context, name, data_type):
         raise RunTimeError(f"Invalid data type [{data_type}]")
 
 
-def ros_gz_bridge(topic, ros_type, gz_type, io):
+def ros_gz_bridge(gz_topic, ros_type, gz_type, io):
     direction = "]" if io == "i" else "["
-    param = f'{topic}@{ros_type}{direction}{gz_type}'
+    param = f'{gz_topic}@{ros_type}{direction}{gz_type}'
     cmd = ['ros2', 'run', 'ros_gz_bridge', 'parameter_bridge', param]
-    return ExecuteProcess(cmd=cmd, output='screen')
+    return ExecuteProcess(cmd=cmd, output='screen', shell=True)
 
-def ros_gz_float64(topic, io):
+def ros_gz_float64(gz_topic, io):
     ros_type = "std_msgs/msg/Float64"
     gz_type = "gz.msgs.Double"
-    return ros_gz_bridge(topic, ros_type, gz_type, io)
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, io)
 
-def ros_gz_int32(topic, io):
+def ros_gz_int32(gz_topic, io):
     ros_type = "std_msgs/msg/Int32"
     gz_type = "gz.msgs.Int32"
-    return ros_gz_bridge(topic, ros_type, gz_type, io)
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, io)
 
-def ros_gz_pose_stamped(topic):
+def ros_gz_pose_stamped(gz_topic):
     ros_type = "geometry_msgs/msg/PoseStamped"
     gz_type = "gz.msgs.Pose"
-    return ros_gz_bridge(topic, ros_type, gz_type, "o")
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, "o")
 
-def ros_gz_vector3(topic, io):
+def ros_gz_vector3(gz_topic, io):
     ros_type = "geometry_msgs/msg/Vector3"
     gz_type = "gz.msgs.Vector3d"
-    return ros_gz_bridge(topic, ros_type, gz_type, io)
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, io)
 
-def ros_gz_joint_state(topic):
+def ros_gz_joint_state(gz_topic):
     ros_type = "sensor_msgs/msg/JointState"
     gz_type = "gz.msgs.Model"
-    return ros_gz_bridge(topic, ros_type, gz_type, "o")
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, "o")
 
-def ros_gz_image(topic):
+def ros_gz_image(gz_topic):
     ros_type = "sensor_msgs/msg/Image"
     gz_type = "gz.msgs.Image"
-    return ros_gz_bridge(topic, ros_type, gz_type, "o")
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, "o")
 
-def ros_gz_camera_info(topic):
+def ros_gz_camera_info(gz_topic):
     ros_type = "sensor_msgs/msg/CameraInfo"
     gz_type = "gz.msgs.CameraInfo"
     direction = "["
-    return ros_gz_bridge(topic, ros_type, gz_type, "o")
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, "o")
 
 
 def ros_gz_gimbal():
     descs = []
-
     descs.append(ros_gz_image("/gimbal/camera0"))
     descs.append(ros_gz_image("/gimbal/camera1"))
     descs.append(ros_gz_float64("/gimbal/joint0/cmd", "i"))
@@ -87,12 +86,12 @@ def ros_gz_gimbal():
     descs.append(ros_gz_vector3("/gimbal/target_attitude/cmd", "i"))
     descs.append(ros_gz_camera_info("/gimbal/camera_info"))
     descs.append(ros_gz_pose_stamped("/model/gimbal/pose"))
-
     return descs
 
 
 def ros_gz_mav():
     descs = []
+    descs.append(ros_gz_pose_stamped("/model/x500/pose"))
     descs.append(ros_gz_vector3("/x500/position/cmd", "i"))
     descs.append(ros_gz_float64("/x500/yaw/cmd", "i"))
     return descs
@@ -111,6 +110,8 @@ def rqt_proc():
 def launch_setup(context, *args, **kwargs):
     # Settings
     gz_world = launch_argument(context, "gz_world", str)
+    verbose = launch_argument(context, "verbose", bool)
+    run_on_start = launch_argument(context, "run_on_start", bool)
     enable_headless = launch_argument(context, "enable_headless", bool)
     enable_rqt = launch_argument(context, "enable_rqt", bool)
     has_mav = launch_argument(context, "has_mav", bool)
@@ -130,7 +131,13 @@ def launch_setup(context, *args, **kwargs):
     config_path = os.path.join(proj_dir, "gazebo/configs/sim_sandbox.config")
 
     # Gazebo Simulator
-    cmd = ['gz', 'sim', gz_world, '-v', '-r', '--gui-config', config_path]
+    cmd = ['gz', 'sim', gz_world, '--gui-config', config_path]
+    if verbose:
+        cmd.append("-v")
+
+    if run_on_start:
+        cmd.append("-r")
+
     if enable_headless:
         cmd.append("-s")
         cmd.append("--headless-rendering")
@@ -167,6 +174,8 @@ def generate_launch_description():
     # https://answers.ros.org/question/322636/ros2-access-current-launchconfiguration/?answer=359167#post-id-359167
     return launch.LaunchDescription([
         DeclareLaunchArgument("gz_world", default_value="sim_sandbox.sdf"),
+        DeclareLaunchArgument("verbose", default_value='False'),
+        DeclareLaunchArgument("run_on_start", default_value='True'),
         DeclareLaunchArgument("enable_headless", default_value='False'),
         DeclareLaunchArgument("enable_rqt", default_value='False'),
         DeclareLaunchArgument("has_mav", default_value='False'),

@@ -37,8 +37,6 @@ sim_calib:  ## Run calibration simulation
 		&& source install/setup.bash \
 		&& ros2 launch proto_ros2 proto_ros2.launch.py \
 			gz_world:=sim_calib.sdf \
-			enable_headless:=true \
-			enable_rqt:=false \
 			has_mav:=true \
 			has_gimbal:=true \
 			has_aprilgrid:=true
@@ -57,8 +55,7 @@ sim_castle:  ## Run castle simulation
 			gz_world:=sim_castle.sdf \
 			enable_rqt:=true \
 			has_mav:=true \
-			has_gimbal:=true \
-			has_aprilgrid:=false
+			has_gimbal:=true
 
 sim_sandbox:  ## Run sandbox simulation
 	@cd ${ROS2_WS} \
@@ -66,7 +63,8 @@ sim_sandbox:  ## Run sandbox simulation
 		&& source install/setup.bash \
 		&& ros2 launch proto_ros2 proto_ros2.launch.py \
 			gz_world:=sim_sandbox.sdf \
-			enable_rqt:=true \
+			run_on_start:=true \
+			enable_headless:=true \
 			has_mav:=true \
 			has_gimbal:=true \
 			has_aprilgrid:=true

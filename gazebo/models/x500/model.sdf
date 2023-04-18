@@ -690,7 +690,8 @@
     <!-- GIMBAL -->
     <!-- Gimbal base -->
     <link name="gimbal_base">
-      <pose relative_to="base_link">-0.05 0.0 -0.02 3.1415 0.0 0.0</pose>
+      <pose relative_to="base_link">-0.05 0.0 -0.05 3.1415 0.0 0.0</pose>
+      <!-- <pose>0 0 0 3.1415 0.0 0.0</pose> -->
       <inertial>
         <inertia>
           <ixx>0.001</ixx>
@@ -716,25 +717,10 @@
             <specular>0.0 0.0 0.0 1</specular>
         </material>
       </visual>
-
-      <!-- <collision name="gimbal_base_collision"> -->
-      <!--   <geometry> -->
-      <!--     <box> -->
-      <!--       <size>0.1 0.1 0.01</size> -->
-      <!--     </box> -->
-      <!--   </geometry> -->
-      <!-- </collision> -->
     </link>
 
-    <!-- base_link to gimbal_base joint -->
-    <joint name="base_link_to_gimbal_base_joint" type="fixed">
-      <parent>base_link</parent>
-      <child>gimbal_base</child>
-    </joint>
-
     <!-- Gimbal yaw motor -->
-    <link name="gimbal_yaw">
-      <!-- <pose relative_to="gimbal_base">0.0 0.0 0.01225 0.0 0.0 0.0</pose> -->
+    <link name="gimbal_yaw_motor">
       <pose relative_to="gimbal_base">0.0 0.0 0.0 0.0 0.0 0.0</pose>
 
       <inertial>
@@ -749,7 +735,7 @@
         <mass>0.00001</mass>
       </inertial>
 
-      <visual name="gimbal_yaw_visual">
+      <visual name="gimbal_yaw_motor_visual">
         <geometry>
           <cylinder>
             <radius>0.015</radius>
@@ -763,26 +749,221 @@
             <specular>1.0 0.0 0.0 1</specular>
         </material>
       </visual>
-
-      <!-- <collision name="gimbal_yaw_collision"> -->
-      <!--   <geometry> -->
-      <!--     <cylinder> -->
-      <!--       <radius>0.015</radius> -->
-      <!--       <length>0.015</length> -->
-      <!--     </cylinder> -->
-      <!--   </geometry> -->
-      <!-- </collision> -->
     </link>
 
-    <!-- Gimbal base to yaw joint -->
-    <joint name="gimbal_base_to_gimbal_yaw_joint" type="fixed">
+    <!-- Gimbal roll motor -->
+    <link name="gimbal_roll_motor">
+      <pose relative_to="gimbal_yaw_motor">0.0 0.0 0.05 0.0 1.5708 0.0</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.000001</iyy>
+          <iyz>0</iyz>
+          <izz>0.000001</izz>
+        </inertia>
+        <mass>0.00001</mass>
+      </inertial>
+
+      <visual name="gimbal_roll_motor_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.015</radius>
+            <length>0.015</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+            <ambient>1.0 0.0 0.0 1</ambient>
+            <diffuse>1.0 0.0 0.0 1</diffuse>
+            <specular>1.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Gimbal pitch motor -->
+    <link name="gimbal_pitch_motor">
+      <pose relative_to="gimbal_roll_motor">0.0 0.0 0.05 1.5708 0.0 0.0</pose>
+
+      <inertial>
+        <inertia>
+          <ixx>0.00001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.00001</iyy>
+          <iyz>0</iyz>
+          <izz>0.00001</izz>
+        </inertia>
+        <mass>0.0001</mass>
+      </inertial>
+
+      <visual name="gimbal_pitch_motor_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.015</radius>
+            <length>0.015</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+            <ambient>1.0 0.0 0.0 1</ambient>
+            <diffuse>1.0 0.0 0.0 1</diffuse>
+            <specular>1.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Gimbal yaw bar -->
+    <link name="gimbal_yaw_bar">
+      <pose relative_to="gimbal_yaw_motor">0.0 0.0 0.025 0.0 0.0 0.0</pose>
+      <inertial>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.000001</iyy>
+          <iyz>0</iyz>
+          <izz>0.000001</izz>
+        </inertia>
+        <mass>0.00001</mass>
+      </inertial>
+      <visual name="gimbal_yaw_bar_visual">
+        <geometry><box><size>0.02 0.02 0.045</size></box></geometry>
+        <material>
+            <ambient>0.0 0.0 0.0 1</ambient>
+            <diffuse>0.0 0.0 0.0 1</diffuse>
+            <specular>0.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Gimbal roll bar -->
+    <link name="gimbal_roll_bar">
+      <pose relative_to="gimbal_roll_motor">0.0 0.0 0.025 0.0 0.0 0.0</pose>
+      <inertial>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+        <mass>0.0001</mass>
+      </inertial>
+      <visual name="gimbal_roll_bar_visual">
+        <geometry><box><size>0.02 0.02 0.05</size></box></geometry>
+        <material>
+            <ambient>0.0 0.0 0.0 1</ambient>
+            <diffuse>0.0 0.0 0.0 1</diffuse>
+            <specular>0.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Stereo Camera -->
+    <link name="stereo_camera">
+      <pose relative_to="gimbal_pitch_motor">0.0 0.0 0.0 0.0 3.14 0.0</pose>
+      <inertial>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+        <mass>0.0001</mass>
+      </inertial>
+      <visual name="stereo_camera_visual">
+        <geometry><box><size>0.02 0.02 0.10</size></box></geometry>
+        <material>
+          <ambient>0.0 0.0 0.0 1</ambient>
+          <diffuse>0.0 0.0 0.0 1</diffuse>
+          <specular>0.0 0.0 0.0 1</specular>
+        </material>
+      </visual>
+
+      <!-- Camera0 -->
+      <visual name="camera0_visual">
+        <pose relative_to="gimbal_pitch_motor">0 0 0.05 1.5708 0 1.5708</pose>
+        <geometry><box><size>0.05 0.03 0.03</size></box></geometry>
+        <material>
+          <ambient>0.0 0.0 1.0 1</ambient>
+          <diffuse>0.0 0.0 1.0 1</diffuse>
+          <specular>0.0 0.0 1.0 1</specular>
+        </material>
+      </visual>
+      <sensor name="camera0" type="camera">
+        <pose relative_to="gimbal_pitch_motor">0 0 0.05 1.5708 0 1.5708</pose>
+        <topic>/gimbal/camera0</topic>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>640</height>
+          </image>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>10</update_rate>
+        <visualize>true</visualize>
+      </sensor>
+
+      <!-- Camera1 -->
+      <visual name="camera1_visual">
+        <pose relative_to="gimbal_pitch_motor">0 0 -0.05 1.5708 0 1.5708</pose>
+        <geometry><box><size>0.05 0.03 0.03</size></box></geometry>
+        <material>
+          <ambient>0.0 0.0 1.0 1</ambient>
+          <diffuse>0.0 0.0 1.0 1</diffuse>
+          <specular>0.0 0.0 1.0 1</specular>
+        </material>
+      </visual>
+      <sensor name="camera1" type="camera">
+        <pose relative_to="gimbal_pitch_motor">0 0 -0.05 1.5708 0 1.5708</pose>
+        <topic>/gimbal/camera1</topic>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>640</height>
+          </image>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>10</update_rate>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <!-- Mav base_link to gimbal base joint -->
+    <joint name="base_link_to_gimbal_base" type="fixed">
+      <parent>base_link</parent>
+      <child>gimbal_base</child>
+    </joint>
+
+    <!-- Gimbal base to gimbal yaw motor joint -->
+    <joint name="gimbal_base_to_gimbal_yaw_motor" type="fixed">
       <parent>gimbal_base</parent>
-      <child>gimbal_yaw</child>
+      <child>gimbal_yaw_motor</child>
+    </joint>
+
+    <!-- Gimbal yaw bar to gimbal roll motor joint -->
+    <joint name="gimbal_yaw_bar_to_gimbal_roll_motor" type="fixed">
+      <parent>gimbal_yaw_bar</parent>
+      <child>gimbal_roll_motor</child>
+    </joint>
+
+    <!-- Gimbal roll bar to gimbal pitch motor joint -->
+    <joint name="gimbal_roll_bar_to_gimbal_pitch_motor" type="fixed">
+      <parent>gimbal_roll_bar</parent>
+      <child>gimbal_pitch_motor</child>
     </joint>
 
     <!-- Gimbal yaw joint -->
     <joint name="gimbal_yaw_joint" type="revolute">
-      <parent>gimbal_yaw</parent>
+      <parent>gimbal_yaw_motor</parent>
       <child>gimbal_yaw_bar</child>
       <axis>
         <xyz>0 0 1</xyz>
@@ -811,136 +992,9 @@
       <topic>/gimbal/joint0/state</topic>
     </plugin>
 
-    <!-- Gimbal yaw bar -->
-    <link name="gimbal_yaw_bar">
-      <pose relative_to="gimbal_yaw">0.0 0.0 0.0325 0.0 0.0 0.0</pose>
-
-      <inertial>
-        <inertia>
-          <ixx>0.000001</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.000001</iyy>
-          <iyz>0</iyz>
-          <izz>0.000001</izz>
-        </inertia>
-        <mass>0.00001</mass>
-      </inertial>
-
-      <visual name="gimbal_yaw_bar_visual">
-        <geometry>
-          <box>
-            <size>0.02 0.02 0.05</size>
-          </box>
-        </geometry>
-
-        <material>
-            <ambient>0.0 0.0 0.0 1</ambient>
-            <diffuse>0.0 0.0 0.0 1</diffuse>
-            <specular>0.0 0.0 0.0 1</specular>
-        </material>
-      </visual>
-
-      <!-- <collision name="gimbal_yaw_bar_collision"> -->
-      <!--   <pose>0.0 0.0 0.0 0 0 0</pose> -->
-      <!--   <geometry> -->
-      <!--     <box> -->
-      <!--       <size>0.02 0.02 0.05</size> -->
-      <!--     </box> -->
-      <!--   </geometry> -->
-      <!-- </collision> -->
-    </link>
-
-    <!-- Gimbal roll motor -->
-    <link name="gimbal_roll">
-      <pose relative_to="gimbal_yaw_bar">0.0175 0.0 0.01 0.0 1.5708 0.0</pose>
-
-      <inertial>
-        <inertia>
-          <ixx>0.000001</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.000001</iyy>
-          <iyz>0</iyz>
-          <izz>0.000001</izz>
-        </inertia>
-        <mass>0.00001</mass>
-      </inertial>
-
-      <visual name="gimbal_roll_visual">
-        <geometry>
-          <cylinder>
-            <radius>0.015</radius>
-            <length>0.015</length>
-          </cylinder>
-        </geometry>
-
-        <material>
-            <ambient>1.0 0.0 0.0 1</ambient>
-            <diffuse>1.0 0.0 0.0 1</diffuse>
-            <specular>1.0 0.0 0.0 1</specular>
-        </material>
-      </visual>
-
-      <collision name="gimbal_roll_collision">
-        <geometry>
-          <cylinder>
-            <radius>0.015</radius>
-            <length>0.015</length>
-          </cylinder>
-        </geometry>
-      </collision>
-    </link>
-
-    <!-- Gimbal roll bar -->
-    <link name="gimbal_roll_bar">
-      <pose relative_to="gimbal_roll">0.0 0.0 0.0325 0.0 0.0 0.0</pose>
-
-      <inertial>
-        <inertia>
-          <ixx>0.001</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.001</iyy>
-          <iyz>0</iyz>
-          <izz>0.001</izz>
-        </inertia>
-        <mass>0.0001</mass>
-      </inertial>
-
-      <visual name="gimbal_roll_bar_visual">
-        <geometry>
-          <box>
-            <size>0.02 0.02 0.05</size>
-          </box>
-        </geometry>
-
-        <material>
-            <ambient>0.0 0.0 0.0 1</ambient>
-            <diffuse>0.0 0.0 0.0 1</diffuse>
-            <specular>0.0 0.0 0.0 1</specular>
-        </material>
-      </visual>
-
-      <collision name="gimbal_roll_bar_collision">
-        <pose>0.0 0.0 0.0 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>0.02 0.02 0.05</size>
-          </box>
-        </geometry>
-      </collision>
-    </link>
-
-    <!-- Gimbal yaw bar to roll joint -->
-    <joint name="gimbal_yaw_bar_to_gimbal_roll_joint" type="fixed">
-      <parent>gimbal_yaw_bar</parent>
-      <child>gimbal_roll</child>
-    </joint>
-
     <!-- Gimbal roll joint -->
     <joint name="gimbal_roll_joint" type="revolute">
-      <parent>gimbal_roll</parent>
+      <parent>gimbal_roll_motor</parent>
       <child>gimbal_roll_bar</child>
       <axis>
         <xyz>0 0 1</xyz>
@@ -969,154 +1023,10 @@
       <topic>/gimbal/joint1/state</topic>
     </plugin>
 
-    <!-- Gimbal pitch motor -->
-    <link name="gimbal_pitch">
-      <pose relative_to="gimbal_roll_bar">0.0 0.0175 0.01 -1.5708 0.0 0.0</pose>
-
-      <inertial>
-        <inertia>
-          <ixx>0.00001</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.00001</iyy>
-          <iyz>0</iyz>
-          <izz>0.00001</izz>
-        </inertia>
-        <mass>0.0001</mass>
-      </inertial>
-
-      <visual name="gimbal_pitch_visual">
-        <geometry>
-          <cylinder>
-            <radius>0.015</radius>
-            <length>0.015</length>
-          </cylinder>
-        </geometry>
-
-        <material>
-            <ambient>1.0 0.0 0.0 1</ambient>
-            <diffuse>1.0 0.0 0.0 1</diffuse>
-            <specular>1.0 0.0 0.0 1</specular>
-        </material>
-      </visual>
-
-      <collision name="gimbal_pitch_collision">
-        <geometry>
-          <cylinder>
-            <radius>0.015</radius>
-            <length>0.015</length>
-          </cylinder>
-        </geometry>
-      </collision>
-    </link>
-
-    <!-- Gimbal pitch bar -->
-    <link name="gimbal_pitch_bar">
-      <pose relative_to="gimbal_pitch">0.0 0.0 0.0 0.0 3.14 0.0</pose>
-
-      <inertial>
-        <inertia>
-          <ixx>0.001</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.001</iyy>
-          <iyz>0</iyz>
-          <izz>0.001</izz>
-        </inertia>
-        <mass>0.0001</mass>
-      </inertial>
-
-      <visual name="gimbal_pitch_bar_visual">
-        <geometry>
-          <box>
-            <size>0.02 0.02 0.10</size>
-          </box>
-        </geometry>
-
-        <material>
-          <ambient>0.0 0.0 0.0 1</ambient>
-          <diffuse>0.0 0.0 0.0 1</diffuse>
-          <specular>0.0 0.0 0.0 1</specular>
-        </material>
-      </visual>
-
-      <!-- Camera0 -->
-      <visual name="camera0_visual">
-        <pose>0 0 0.05 1.5708 0 -1.5708</pose>
-
-        <geometry>
-          <box>
-            <size>0.05 0.03 0.03</size>
-          </box>
-        </geometry>
-
-        <material>
-          <ambient>0.0 0.0 1.0 1</ambient>
-          <diffuse>0.0 0.0 1.0 1</diffuse>
-          <specular>0.0 0.0 1.0 1</specular>
-        </material>
-      </visual>
-      <sensor name="camera0" type="camera">
-        <pose>0 0 0.05 1.5708 0 -1.5708</pose>
-
-        <topic>/gimbal/camera0</topic>
-        <camera>
-          <horizontal_fov>1.047</horizontal_fov>
-          <image>
-            <width>640</width>
-            <height>640</height>
-          </image>
-        </camera>
-
-        <always_on>1</always_on>
-        <update_rate>10</update_rate>
-        <visualize>true</visualize>
-      </sensor>
-
-      <!-- Camera1 -->
-      <visual name="camera1_visual">
-        <pose>0 0 -0.05 1.5708 0 -1.5708</pose>
-
-        <geometry>
-          <box>
-            <size>0.05 0.03 0.03</size>
-          </box>
-        </geometry>
-
-        <material>
-          <ambient>0.0 0.0 1.0 1</ambient>
-          <diffuse>0.0 0.0 1.0 1</diffuse>
-          <specular>0.0 0.0 1.0 1</specular>
-        </material>
-      </visual>
-      <sensor name="camera1" type="camera">
-        <pose>0 0 -0.05 1.5708 0 -1.5708</pose>
-
-        <topic>/gimbal/camera1</topic>
-        <camera>
-          <horizontal_fov>1.047</horizontal_fov>
-          <image>
-            <width>640</width>
-            <height>640</height>
-          </image>
-        </camera>
-
-        <always_on>1</always_on>
-        <update_rate>10</update_rate>
-        <visualize>true</visualize>
-      </sensor>
-    </link>
-
-    <!-- Gimbal roll bar to gimbal pitch joint -->
-    <joint name="gimbal_roll_bar_to_gimbal_pitch_joint" type="fixed">
-      <parent>gimbal_roll_bar</parent>
-      <child>gimbal_pitch</child>
-    </joint>
-
     <!-- Gimbal pitch joint -->
     <joint name="gimbal_pitch_joint" type="revolute">
-      <parent>gimbal_pitch</parent>
-      <child>gimbal_pitch_bar</child>
+      <parent>gimbal_pitch_motor</parent>
+      <child>stereo_camera</child>
       <axis>
         <xyz>0 0 1</xyz>
         <dynamics>
@@ -1144,6 +1054,7 @@
       <topic>/gimbal/joint2/state</topic>
     </plugin>
 
+    <!-- Gimbal controller plugin -->
     <plugin
         filename="libGimbalControllerPlugin"
         name="GimbalControllerPlugin">
@@ -1158,6 +1069,7 @@
       <target_attitude_cmd_topic>/gimbal/target_attitude/cmd</target_attitude_cmd_topic>
     </plugin>
 
+    <!-- Gimbal pose plugin -->
     <plugin
       filename="gz-sim-pose-publisher-system"
       name="gz::sim::systems::PosePublisher">

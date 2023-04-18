@@ -50,11 +50,13 @@ private:
   gz::transport::Node::Publisher joint2_pub_;
 
   int mode_ = GIMBAL_STABILIZATION_MODE;
+  // int mode_ = GIMBAL_IDEL_MODE;
   gz::math::Vector3d target_point_{0.0, 0.0, 0.0};
   gz::math::Vector3d target_attitude_{0.0, 0.0, 0.0};
 
   /** Print pose **/
-  void PrintPose(const std::string &prefix, const gz::math::Matrix4d &tf) const {
+  void PrintPose(const std::string &prefix,
+                 const gz::math::Matrix4d &tf) const {
     const auto rx = tf.Translation().X();
     const auto ry = tf.Translation().Y();
     const auto rz = tf.Translation().Z();
@@ -64,15 +66,25 @@ private:
     const auto qy = tf.Rotation().Y();
     const auto qz = tf.Rotation().Z();
 
-    std::cout << prefix + ": ";
+    // std::cout << prefix + ": ";
+    // std::cout << rx << ", ";
+    // std::cout << ry << ", ";
+    // std::cout << rz << ", ";
+    // std::cout << qx << ", ";
+    // std::cout << qy << ", ";
+    // std::cout << qz << ", ";
+    // std::cout << qw << "  ";
+    // std::cout << "# x, y, z, qx, qy, qz, qw" << std::endl;
+
+    std::cout << prefix + " = np.array([";
     std::cout << rx << ", ";
     std::cout << ry << ", ";
     std::cout << rz << ", ";
     std::cout << qx << ", ";
     std::cout << qy << ", ";
     std::cout << qz << ", ";
-    std::cout << qw << "  ";
-    std::cout << "# x, y, z, qx, qy, qz, qw" << std::endl;
+    std::cout << qw << "";
+    std::cout << "])" << std::endl;
   }
 
   /** Print gimbal kinematics **/
@@ -101,14 +113,25 @@ private:
     const auto T_M1M2 = T_WM1.Inverse() * T_WM2;
     const auto T_M2C0 = T_WM2.Inverse() * T_WC0 * T_correction;
     const auto T_M2C1 = T_WM2.Inverse() * T_WC1 * T_correction;
+    const auto T_WC0_corrected = T_WC0 * T_correction;
+    const auto T_WC1_corrected = T_WC1 * T_correction;
 
     std::cout << "Gimbal Kinematics:" << std::endl;
-    PrintPose("T_WB", T_WB);
-    PrintPose("T_BM0", T_BM0);
-    PrintPose("T_M0M1", T_M0M1);
-    PrintPose("T_M1M2", T_M1M2);
-    PrintPose("T_M2C0", T_M2C0);
-    PrintPose("T_M2C1", T_M2C1);
+    // PrintPose("T_WB", T_WB);
+    // PrintPose("T_BM0", T_BM0);
+    // PrintPose("T_M0M1", T_M0M1);
+    // PrintPose("T_M1M2", T_M1M2);
+    // PrintPose("T_M2C0", T_M2C0);
+    // PrintPose("T_M2C1", T_M2C1);
+
+    PrintPose("gimbal_pose", T_WB);
+    PrintPose("gimbal_ext", T_BM0);
+    PrintPose("gimbal_link0", T_M0M1);
+    PrintPose("gimbal_link1", T_M1M2);
+    PrintPose("cam0_ext", T_M2C0);
+    PrintPose("cam1_ext", T_M2C1);
+    PrintPose("cam0_pose", T_WC0_corrected);
+    PrintPose("cam1_pose", T_WC1_corrected);
   }
 
   /** Gimbal mode message callback **/
@@ -139,9 +162,9 @@ public:
     // Entity and model
     entity_ = entity;
     model_ = gz::sim::Model(entity);
-    joint0_ = model_.LinkByName(ecm, "gimbal_yaw");
-    joint1_ = model_.LinkByName(ecm, "gimbal_roll");
-    joint2_ = model_.LinkByName(ecm, "gimbal_pitch");
+    joint0_ = model_.LinkByName(ecm, "gimbal_yaw_motor");
+    joint1_ = model_.LinkByName(ecm, "gimbal_roll_motor");
+    joint2_ = model_.LinkByName(ecm, "gimbal_pitch_motor");
     cam0_ = *gz::sim::entitiesFromScopedName("camera0", ecm).begin();
     cam1_ = *gz::sim::entitiesFromScopedName("camera1", ecm).begin();
     PrintGimbalKinematics(ecm);
@@ -181,72 +204,72 @@ public:
   /** Plugin Pose-Update **/
   void PostUpdate(const gz::sim::UpdateInfo &info,
                   const gz::sim::EntityComponentManager &ecm) override {
-      double joint0_cmd = 0.0;
-      double joint1_cmd = 0.0;
-      double joint2_cmd = 0.0;
+    double joint0_cmd = 0.0;
+    double joint1_cmd = 0.0;
+    double joint2_cmd = 0.0;
 
-      if (mode_ == GIMBAL_STABILIZATION_MODE) {
-        const auto roll_setpoint = target_attitude_.X();
-        const auto pitch_setpoint = target_attitude_.Y();
-        const auto yaw_setpoint = target_attitude_.Z();
+    if (mode_ == GIMBAL_STABILIZATION_MODE) {
+      const auto roll_setpoint = target_attitude_.X();
+      const auto pitch_setpoint = target_attitude_.Y();
+      const auto yaw_setpoint = target_attitude_.Z();
 
-        const auto pose = gz::sim::worldPose(model_.Entity(), ecm);
-        const auto roll_actual = pose.Rot().Roll();
-        const auto pitch_actual = pose.Rot().Pitch();
-        const auto yaw_actual = pose.Rot().Yaw();
+      const auto pose = gz::sim::worldPose(model_.Entity(), ecm);
+      const auto roll_actual = pose.Rot().Roll();
+      const auto pitch_actual = pose.Rot().Pitch();
+      const auto yaw_actual = pose.Rot().Yaw();
 
-        const auto roll_error = roll_setpoint - roll_actual;
-        const auto pitch_error = pitch_setpoint - pitch_actual;
-        const auto yaw_error = yaw_setpoint - yaw_actual;
+      const auto roll_error = roll_setpoint - roll_actual;
+      const auto pitch_error = pitch_setpoint - pitch_actual;
+      const auto yaw_error = yaw_setpoint - yaw_actual;
 
-        joint0_cmd = -yaw_error;
-        joint1_cmd = roll_error;
-        joint2_cmd = pitch_error;
+      joint0_cmd = -yaw_error;
+      joint1_cmd = roll_error;
+      joint2_cmd = pitch_error;
 
-      } else if (mode_ == GIMBAL_TRACKING_MODE) {
+    } else if (mode_ == GIMBAL_TRACKING_MODE) {
+    }
 
+    // -- Publish joint commnds
+    gz::msgs::Double joint0_msg;
+    gz::msgs::Double joint1_msg;
+    gz::msgs::Double joint2_msg;
 
-      }
+    const gz::msgs::Time stamp = gz::msgs::Convert(info.simTime);
+    joint0_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+    joint1_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+    joint2_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
 
-      // -- Publish joint commnds
-      gz::msgs::Double joint0_msg;
-      gz::msgs::Double joint1_msg;
-      gz::msgs::Double joint2_msg;
+    joint0_msg.set_data(joint0_cmd);
+    joint1_msg.set_data(joint1_cmd);
+    joint2_msg.set_data(joint2_cmd);
 
-      const gz::msgs::Time stamp = gz::msgs::Convert(info.simTime);
-      joint0_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
-      joint1_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
-      joint2_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
-
-      joint0_msg.set_data(joint0_cmd);
-      joint1_msg.set_data(joint1_cmd);
-      joint2_msg.set_data(joint2_cmd);
-
+    if (mode_ != GIMBAL_IDEL_MODE) {
       joint0_pub_.Publish(joint0_msg);
       joint1_pub_.Publish(joint1_msg);
       joint2_pub_.Publish(joint2_msg);
+    }
 
-      // -- Publish gimbal mode
-      gz::msgs::Int32 mode_msg;
-      mode_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
-      mode_msg.set_data(mode_);
-      mode_state_pub_.Publish(mode_msg);
+    // -- Publish gimbal mode
+    gz::msgs::Int32 mode_msg;
+    mode_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+    mode_msg.set_data(mode_);
+    mode_state_pub_.Publish(mode_msg);
 
-      // -- Publish target point
-      gz::msgs::Vector3d target_point_msg;
-      target_point_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
-      target_point_msg.set_x(target_point_.X());
-      target_point_msg.set_y(target_point_.Y());
-      target_point_msg.set_z(target_point_.Z());
-      target_point_state_pub_.Publish(target_point_msg);
+    // -- Publish target point
+    gz::msgs::Vector3d target_point_msg;
+    target_point_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+    target_point_msg.set_x(target_point_.X());
+    target_point_msg.set_y(target_point_.Y());
+    target_point_msg.set_z(target_point_.Z());
+    target_point_state_pub_.Publish(target_point_msg);
 
-      // -- Publish target attitude
-      gz::msgs::Vector3d target_attitude_msg;
-      target_attitude_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
-      target_attitude_msg.set_x(target_attitude_.X());
-      target_attitude_msg.set_y(target_attitude_.Y());
-      target_attitude_msg.set_z(target_attitude_.Z());
-      target_attitude_state_pub_.Publish(target_attitude_msg);
+    // -- Publish target attitude
+    gz::msgs::Vector3d target_attitude_msg;
+    target_attitude_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+    target_attitude_msg.set_x(target_attitude_.X());
+    target_attitude_msg.set_y(target_attitude_.Y());
+    target_attitude_msg.set_z(target_attitude_.Z());
+    target_attitude_state_pub_.Publish(target_attitude_msg);
   }
 };
 

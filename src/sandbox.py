@@ -2,6 +2,7 @@ import math
 
 import rclpy
 from rclpy.node import Node
+import message_filters
 
 from std_msgs.msg import Int32
 from std_msgs.msg import Float64
@@ -18,43 +19,136 @@ import matplotlib.pylab as plt
 from mpl_toolkits import mplot3d
 
 
-def plot_gimbal_chains():
-    # T_WF = np.array([[-3.67320510e-06,  1.00000000e+00, -3.67320510e-06,  2.00000000e+00],
-    #                  [-5.55111512e-17, -3.67320510e-06, -1.00000000e+00,  4.90000000e-01],
-    #                  [-1.00000000e+00, -3.67320510e-06,  1.34924849e-11,  0.00000000e+00],
-    #                  [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+def convert_msg(msg):
+    if isinstance(msg, PoseStamped):
+        r = msg.pose.position
+        q = msg.pose.orientation
+        return proto.pose2tf([r.x, r.y, r.z, q.x, q.x, q.y, q.w])
 
+    elif isinstance(msg, Image):
+        cv_bridge = CvBridge()
+        return cv_bridge.imgmsg_to_cv2(msg)
+
+    elif isinstance(msg, JointState):
+        return msg.position[0]
+
+    else:
+        raise NotImplementedError()
+
+
+def plot_gimbal_chains():
     q_WF = proto.euler321(-math.pi / 2.0, 0.0, math.pi / 2.0)
     r_WF = np.array([2, 0.49, 0])
     T_WF = proto.tf(q_WF, r_WF)
 
-    T_WB = proto.pose2tf([0, 0, 0.235, 0, 0, 0, 1])
-    T_BM0 = proto.pose2tf([-0.05, 0, -0.02, 1, 0, 0, 4.63268e-05])
-    T_M0M1 = proto.pose2tf([0.0175, 0, 0.0425, 5.48441e-21, 0.707108, 2.39578e-21, 0.707105])
-    T_M1M2 = proto.pose2tf([0, 0.0175, 0.0425, -0.707108, -7.29657e-17, 1.33061e-16, 0.707105])
-    T_M2C0 = proto.pose2tf([7.96326e-05, 8.67362e-18, -0.0499999, 0.499602, -0.500398, 0.5004, 0.4996])
-    T_M2C1 = proto.pose2tf([-7.96326e-05, -1.73472e-18, 0.0499999, 0.499602, -0.500398, 0.5004, 0.4996])
+    gimbal_pose = np.array([0, 0, 1, 0, 0, 0, 1])
+    gimbal_ext = np.array([-0.05, 0, -0.02, 1, 0, 0, 4.63268e-05])
+    gimbal_link0 = np.array([0.0175, 0, 0.0425, 5.48441e-21, 0.707108, 2.39578e-21, 0.707105])
+    gimbal_link1 = np.array([0, -1.35525e-20, 0, -0.707108, -7.29657e-17, 1.33061e-16, 0.707105])
+    cam0_ext = np.array([-2.22045e-16, 2.77556e-17, 0.05, 0.5, -0.5, 0.499998, 0.500002])
+    cam1_ext = np.array([-1.11022e-16, 1.38778e-17, -0.05, 0.5, -0.5, 0.499998, 0.500002])
+    cam0_pose = np.array([-0.0325002, -0.0500039, 0.937505, 0.500023, -0.499977, 0.500025, -0.499975])
+    cam1_pose = np.array([-0.0324998, 0.0499961, 0.937495, 0.500023, -0.499977, 0.500025, -0.499975])
 
-    T_WL0 = T_WB @ T_BM0
-    T_WL1 = T_WB @ T_BM0 @ T_M0M1
-    T_WL2 = T_WB @ T_BM0 @ T_M0M1 @ T_M1M2
-    T_WC0 = T_WB @ T_BM0 @ T_M0M1 @ T_M1M2 @ T_M2C0
-    T_WC1 = T_WB @ T_BM0 @ T_M0M1 @ T_M1M2 @ T_M2C1
+    joint0 = 0.0
+    joint1 = 0.0
+    joint2 = 0.2
+
+    T_WB = proto.pose2tf(gimbal_pose)
+    T_BM0 = proto.pose2tf(gimbal_ext)
+    T_M0L0 = proto.tf(proto.euler321(joint0, 0, 0), [0, 0, 0]) # Joint0
+    T_M1L1 = proto.tf(proto.euler321(joint1, 0, 0), [0, 0, 0]) # Joint1
+    T_M2L2 = proto.tf(proto.euler321(joint2, 0, 0), [0, 0, 0]) # Joint2
+    T_L0M1 = proto.pose2tf(gimbal_link0) # Link0
+    T_L1M2 = proto.pose2tf(gimbal_link1) # Link1
+    T_L2C0 = proto.pose2tf(cam0_ext)
+    T_L2C1 = proto.pose2tf(cam1_ext)
+
+    T_WL0 = T_WB @ T_BM0 @ T_M0L0
+    T_WL1 = T_WB @ T_BM0 @ T_M0L0 @ T_L0M1 @ T_M1L1
+    T_WL2 = T_WB @ T_BM0 @ T_M0L0 @ T_L0M1 @ T_M1L1 @ T_L1M2 @ T_M2L2
+    T_WC0 = T_WL2 @ T_L2C0
+    T_WC1 = T_WL2 @ T_L2C1
 
     # Visualize
+    tf_size = 0.01
     plt.figure()
     ax = plt.axes(projection='3d')
-    proto.plot_tf(ax, T_WF, name="Fiducial", size=0.05)
-    proto.plot_tf(ax, T_WL0, name="Link0", size=0.05)
-    proto.plot_tf(ax, T_WL1, name="Link1", size=0.05)
-    proto.plot_tf(ax, T_WL2, name="Link2", size=0.05)
-    proto.plot_tf(ax, T_WC0, name="cam0", size=0.05)
-    proto.plot_tf(ax, T_WC1, name="cam1", size=0.05)
+    # proto.plot_tf(ax, T_WF, name="Fiducial", size=tf_size)
+    proto.plot_tf(ax, T_WL0, name="Joint0", size=tf_size)
+    proto.plot_tf(ax, T_WL1, name="Joint1", size=tf_size)
+    proto.plot_tf(ax, T_WL2, name="Joint2", size=tf_size)
+    proto.plot_tf(ax, T_WC0, name="cam0", size=tf_size)
+    proto.plot_tf(ax, T_WC1, name="cam1", size=tf_size)
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
     ax.set_zlabel("z [m]")
     proto.plot_set_axes_equal(ax)
     plt.show()
+
+
+def plot_camera_overlay(cam_idx, cam_frame, T_WS, joint0, joint1, joint2):
+    gimbal_ext = np.array([-0.05, 0, -0.05, 1, 0, 0, 4.63268e-05])
+    gimbal_link0 = np.array([0, -1.35525e-20, 0.05, 5.48441e-21, 0.707108, 2.39578e-21, 0.707105])
+    gimbal_link1 = np.array([2.22045e-16, -1.35525e-20, 0.05, 0.707108, -4.03592e-17, -7.3647e-17, 0.707105])
+    cam0_ext = np.array([-1.11022e-16, 1.00615e-17, 0.05, -0.5, 0.5, 0.500002, 0.499998])
+    cam1_ext = np.array([0, 1.07552e-17, -0.05, -0.5, 0.5, 0.500002, 0.499998])
+
+    cam_exts = {0: cam0_ext, 1: cam1_ext}
+    links = [gimbal_link0, gimbal_link1]
+    joint_angles = [joint0, joint1, joint2]
+    gimbal_kinematics = proto.GimbalKinematics(links, joint_angles)
+
+    q_WF = proto.euler321(-math.pi / 2.0, 0.0, math.pi / 2.0)
+    r_WF = np.array([2, 0.49, 0])
+    T_WF = proto.tf(q_WF, r_WF)
+
+    T_M0L0 = proto.tf(proto.euler321(joint0, 0, 0), [0, 0, 0])
+    T_L0M1 = proto.pose2tf(gimbal_link0)
+    T_M1L1 = proto.tf(proto.euler321(joint1, 0, 0), [0, 0, 0])
+    T_L1M2 = proto.pose2tf(gimbal_link1)
+    T_M2L2 = proto.tf(proto.euler321(joint2, 0, 0), [0, 0, 0])
+    T_M0L2 = T_M0L0 @ T_L0M1 @ T_M1L1 @ T_L1M2 @ T_M2L2
+
+    T_SM0 = proto.pose2tf(gimbal_ext)
+    T_M0L2 = gimbal_kinematics.forward_kinematics(joint_idx=2)
+    T_L2Ci = proto.pose2tf(cam_exts[cam_idx])
+    T_WCi = T_WS @ T_SM0 @ T_M0L2 @ T_L2Ci
+    T_CiF = np.linalg.inv(T_WCi) @ T_WF
+
+    calib_target = proto.AprilGrid(
+        tag_rows=10,
+        tag_cols=10,
+        tag_size=0.08,
+        tag_spacing=0.25
+    )
+    cam_idx = 0
+    cam_res = [640, 640]
+    cam0_params = np.array([554.38270568847656, 554.38270568847656, 320.0, 320.0, 0, 0, 0, 0])
+    cam0_geom = proto.camera_geometry_setup(cam_idx, cam_res, "pinhole", "radtan4")
+
+    tag_ids = []
+    corner_idxs = []
+    object_points = []
+    keypoints = []
+    for (tag_id, corner_idx, p_FFi) in calib_target.get_object_points():
+      p_CiFi = proto.tf_point(T_CiF, p_FFi)
+      status, z = cam0_geom.project(cam0_params, p_CiFi)
+      if status:
+        tag_ids.append(tag_id)
+        corner_idxs.append(corner_idx)
+        object_points.append(p_FFi)
+        keypoints.append(z)
+
+    cam_data = {
+        "num_measurements": len(tag_ids),
+        "tag_ids": tag_ids,
+        "corner_idxs": corner_idxs,
+        "object_points": np.array(object_points),
+        "keypoints": np.array(keypoints),
+    }
+
+    return proto.draw_keypoints(cam_frame, keypoints)
 
 
 class Sandbox(Node):
@@ -76,10 +170,6 @@ class Sandbox(Node):
         # AprilGrid Pose
         self.T_WF = None
 
-        # self.r_SB = np.array([-0.05, 0.0, -0.02])
-        # self.q_SB = proto.euler321(0, 0, 3.1415)
-        # self.T_SB = proto.tf(self.q_SB, self.r_SB)
-
         # ROS2
         self.cv_bridge = CvBridge()
 
@@ -91,37 +181,20 @@ class Sandbox(Node):
 
         # Subscribers
         self.subs = {}
-        # -- Gimbal
-        self.add_sub('/gimbal/camera0', Image, self.camera0_cb)
-        # self.add_sub('/gimbal/camera1', Image, self.camera1_cb)
-        self.add_sub('/gimbal/joint0/state', JointState, self.joint0_cb)
-        self.add_sub('/gimbal/joint1/state', JointState, self.joint1_cb)
-        self.add_sub('/gimbal/joint2/state', JointState, self.joint2_cb)
+        cam0_sub = message_filters.Subscriber(self, Image, '/gimbal/camera0')
+        cam1_sub = message_filters.Subscriber(self, Image, '/gimbal/camera1')
+        joint0_sub = message_filters.Subscriber(self, JointState, '/gimbal/joint0/state')
+        joint1_sub = message_filters.Subscriber(self, JointState, '/gimbal/joint1/state')
+        joint2_sub = message_filters.Subscriber(self, JointState, '/gimbal/joint2/state')
+        pose_sub = message_filters.Subscriber(self, PoseStamped, '/model/x500/pose')
+        sync_subs = [cam0_sub, cam1_sub, joint0_sub, joint1_sub, joint2_sub, pose_sub]
+        msg_time_syncer = message_filters.TimeSynchronizer(sync_subs, 5)
+        msg_time_syncer.registerCallback(self.sync_callback)
+
         self.add_sub('/gimbal/mode/state', Int32, self.mode_cb)
         self.add_sub('/gimbal/target_attitude/state', Vector3, self.target_attitude_cb)
         self.add_sub('/gimbal/target_point/state', Vector3, self.target_point_cb)
-        # -- AprilGrid
         self.add_sub('/model/aprilgrid/pose', PoseStamped, self.aprilgrid_pose_cb)
-        # -- MAV
-        self.add_sub('/model/x500/pose', PoseStamped, self.mav_pose_cb)
-
-    def all_ok(self):
-        check_list = []
-        check_list.append(("cam0_frame", self.cam0_frame))
-        check_list.append(("joint0", self.joint0))
-        check_list.append(("joint1", self.joint1))
-        check_list.append(("joint2", self.joint2))
-        check_list.append(("mode", self.mode))
-        check_list.append(("target_attitude", self.target_attitude))
-        check_list.append(("target_point", self.target_point))
-        check_list.append(("mav_pose", self.T_WS))
-        check_list.append(("fiducial_pose", self.T_WF))
-
-        for key, x in check_list:
-            if x is None:
-                return False
-
-        return True
 
     def add_pub(self, topic, msg_type, qs=1):
         self.pubs[topic] = self.create_publisher(msg_type, topic, qs)
@@ -129,82 +202,22 @@ class Sandbox(Node):
     def add_sub(self, topic, msg_type, cb, qs=1):
         self.subs[topic] = self.create_subscription(msg_type, topic, cb, qs)
 
-    def camera0_cb(self, msg):
-        self.cam0_frame = self.cv_bridge.imgmsg_to_cv2(msg)
+    def sync_callback(self, cam0_msg, cam1_msg, joint0_msg, joint1_msg, joint2_msg, pose_msg):
+        cam0_frame = convert_msg(cam0_msg)
+        cam1_frame = convert_msg(cam1_msg)
+        joint0 = convert_msg(joint0_msg)
+        joint1 = convert_msg(joint1_msg)
+        joint2 = convert_msg(joint2_msg)
+        T_WS = convert_msg(pose_msg)
 
-        if self.all_ok() is False:
-            return
-
-        gimbal_ext = np.array([-0.05, 0, -0.02, 1, 0, 0, 4.63268e-05])   # T_SM0
-        gimbal_link0 = np.array([0.0175, 0, 0.0425, 5.48441e-21, 0.707108, 2.39578e-21, 0.707105])
-        gimbal_link1 = np.array([0, 0.0175, 0.0425, -0.707108, -7.29657e-17, 1.33061e-16, 0.707105])
-        cam0_ext = np.array([7.96326e-05, 8.67362e-18, -0.0499999, 0.499602, -0.500398, 0.5004, 0.4996])
-        cam1_ext = np.array([-7.96326e-05, -1.73472e-18, 0.0499999, 0.499602, -0.500398, 0.5004, 0.4996])
-        links = [gimbal_link0, gimbal_link1]
-        joint_angles = [self.joint0, self.joint1, self.joint2]
-        gimbal_kinematics = proto.GimbalKinematics(links, joint_angles)
-
-        q_WF = proto.euler321(-math.pi / 2.0, 0.0, math.pi / 2.0)
-        r_WF = np.array([2, 0.49, 0])
-        T_WF = proto.tf(q_WF, r_WF)
-
-        # T_WF = self.T_WF
-        T_WS = self.T_WS
-        T_SM0 = proto.pose2tf(gimbal_ext)
-        T_M0L2 = gimbal_kinematics.forward_kinematics(joint_idx=2)
-        T_L2C0 = proto.pose2tf(cam0_ext)
-        T_WC0 = T_WS @ T_SM0 @ T_M0L2 @ T_L2C0
-        T_C0F = np.linalg.inv(T_WC0) @ T_WF
-
-        calib_target = proto.AprilGrid(
-            tag_rows=10,
-            tag_cols=10,
-            tag_size=0.08,
-            tag_spacing=0.25
-        )
-        cam_idx = 0
-        cam_res = [640, 640]
-        cam0_params = np.array([554.38270568847656, 554.38270568847656, 320.0, 320.0, 0, 0, 0, 0])
-        cam0_geom = proto.camera_geometry_setup(cam_idx, cam_res, "pinhole", "radtan4")
-
-        tag_ids = []
-        corner_idxs = []
-        object_points = []
-        keypoints = []
-        for (tag_id, corner_idx, p_FFi) in calib_target.get_object_points():
-          p_C0Fi = proto.tf_point(T_C0F, p_FFi)
-          status, z = cam0_geom.project(cam0_params, p_C0Fi)
-          if status:
-            tag_ids.append(tag_id)
-            corner_idxs.append(corner_idx)
-            object_points.append(p_FFi)
-            keypoints.append(z)
-
-        cam_data = {
-            "num_measurements": len(tag_ids),
-            "tag_ids": tag_ids,
-            "corner_idxs": corner_idxs,
-            "object_points": np.array(object_points),
-            "keypoints": np.array(keypoints),
-        }
-
-        viz = proto.draw_keypoints(self.cam0_frame, keypoints)
-        cv2.imshow("camera", viz)
+        cam0_viz = plot_camera_overlay(0, cam0_frame, T_WS, joint0, joint1, -joint2)
+        cv2.imshow("camera", cam0_viz)
         cv2.waitKey(1)
 
-#     def camera1_cb(self, msg):
-#         frame = self.cv_bridge.imgmsg_to_cv2(msg)
-#         cv2.imshow("camera", frame)
-#         cv2.waitKey(1)
-
-    def joint0_cb(self, msg):
-        self.joint0 = msg.position[0]
-
-    def joint1_cb(self, msg):
-        self.joint1 = msg.position[0]
-
-    def joint2_cb(self, msg):
-        self.joint2 = msg.position[0]
+        # cam0_viz = plot_camera_overlay(0, cam0_frame, T_WS, joint0, joint1, joint2)
+        # cam1_viz = plot_camera_overlay(1, cam1_frame, T_WS, joint0, joint1, joint2)
+        # cv2.imshow("camera", cv2.hconcat([cam0_viz, cam1_viz]))
+        # cv2.waitKey(1)
 
     def mode_cb(self, msg):
         self.mode = msg.data
@@ -216,28 +229,7 @@ class Sandbox(Node):
         self.target_point = np.array([msg.x, msg.y, msg.z])
 
     def aprilgrid_pose_cb(self, msg):
-        pose = [
-            msg.pose.position.x,
-            msg.pose.position.y,
-            msg.pose.position.z,
-            msg.pose.orientation.x,
-            msg.pose.orientation.x,
-            msg.pose.orientation.y,
-            msg.pose.orientation.w
-        ]
-        self.T_WF = proto.pose2tf(pose)
-
-    def mav_pose_cb(self, msg):
-        pose = [
-            msg.pose.position.x,
-            msg.pose.position.y,
-            msg.pose.position.z,
-            msg.pose.orientation.x,
-            msg.pose.orientation.x,
-            msg.pose.orientation.y,
-            msg.pose.orientation.w
-        ]
-        self.T_WS = proto.pose2tf(pose)
+        self.T_WF = convert_msg(msg)
 
     def set_joint(self, joint_idx, joint_angle):
         msg = Float64()

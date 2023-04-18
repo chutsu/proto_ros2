@@ -202,7 +202,7 @@ public:
     // Set initial setpoint
     const auto pose = gz::sim::worldPose(model_.Entity(), ecm);
     position_setpoint_ = pose.Pos();
-    position_setpoint_.Z() = 0.0;  // Assume the drone is on the ground
+    // position_setpoint_.Z() = 0.0;  // Assume the drone is on the ground
     yaw_setpoint_ = pose.Rot().Yaw();
 
     // Parse settings from SDF file

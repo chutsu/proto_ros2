@@ -46,6 +46,11 @@ def ros_gz_pose_stamped(gz_topic):
     gz_type = "gz.msgs.Pose"
     return ros_gz_bridge(gz_topic, ros_type, gz_type, "o")
 
+def ros_gz_pose_array(gz_topic):
+    ros_type = "geometry_msgs/msg/PoseArray"
+    gz_type = "gz.msgs.Pose_V"
+    return ros_gz_bridge(gz_topic, ros_type, gz_type, "o")
+
 def ros_gz_vector3(gz_topic, io):
     ros_type = "geometry_msgs/msg/Vector3"
     gz_type = "gz.msgs.Vector3d"
@@ -91,7 +96,8 @@ def ros_gz_gimbal():
 
 def ros_gz_mav():
     descs = []
-    descs.append(ros_gz_pose_stamped("/model/x500/pose"))
+    # descs.append(ros_gz_pose_stamped("/model/x500/pose"))
+    descs.append(ros_gz_pose_stamped("/x500/pose/state"))
     descs.append(ros_gz_vector3("/x500/position/cmd", "i"))
     descs.append(ros_gz_float64("/x500/yaw/cmd", "i"))
     return descs

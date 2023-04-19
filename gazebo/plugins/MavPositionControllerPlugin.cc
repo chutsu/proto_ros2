@@ -31,16 +31,11 @@ class MavPositionControllerPlugin : public gz::sim::System,
                                     public gz::sim::ISystemPreUpdate,
                                     public gz::sim::ISystemPostUpdate {
 private:
-  // Gazebo topics
-  std::string pose_state_topic_;
-  std::string pos_cmd_topic_;
-  std::string yaw_cmd_topic_;
-  std::string twist_cmd_topic_;
-
   // Fields
   gz::sim::Entity entity_;
   gz::sim::Model model_;
   gz::transport::Node node_;
+  gz::transport::Node::Publisher pose_pub_;
   gz::transport::Node::Publisher twist_pub_;
 
   gz::math::Pose3d pose_;
@@ -167,13 +162,13 @@ private:
     angular_velocity_cmd_.Z() = wz_cmd;
   }
 
-  /** Pose message callback **/
-  void PoseCallback(const gz::msgs::Pose_V &msg) {
-    for (auto pose_data : msg.pose()) {
-      pose_ = gz::msgs::Convert(pose_data);
-      break;
-    }
-  }
+  // /** Pose message callback **/
+  // void PoseCallback(const gz::msgs::Pose_V &msg) {
+  //   for (auto pose_data : msg.pose()) {
+  //     pose_ = gz::msgs::Convert(pose_data);
+  //     break;
+  //   }
+  // }
 
   /** Position setpoint message callback **/
   void PositionSetpointCallback(const gz::msgs::Vector3d &msg) {
@@ -206,15 +201,16 @@ public:
     yaw_setpoint_ = pose.Rot().Yaw();
 
     // Parse settings from SDF file
-    pose_state_topic_ = parseString(sdf, "pose_state_topic");
-    pos_cmd_topic_ = parseString(sdf, "pos_cmd_topic");
-    yaw_cmd_topic_ = parseString(sdf, "yaw_cmd_topic");
-    twist_cmd_topic_ = parseString(sdf, "twist_cmd_topic");
+    const auto pose_state_topic_ = parseString(sdf, "pose_state_topic");
+    const auto pos_cmd_topic_ = parseString(sdf, "pos_cmd_topic");
+    const auto yaw_cmd_topic_ = parseString(sdf, "yaw_cmd_topic");
+    const auto twist_cmd_topic_ = parseString(sdf, "twist_cmd_topic");
 
     // Publishers and subscribers
     // clang-format off
+    pose_pub_ = node_.Advertise<gz::msgs::Pose>(pose_state_topic_);
     twist_pub_ = node_.Advertise<gz::msgs::Twist>(twist_cmd_topic_);
-    node_.Subscribe(pose_state_topic_, &MavPositionControllerPlugin::PoseCallback, this);
+    // node_.Subscribe(pose_state_topic_, &MavPositionControllerPlugin::PoseCallback, this);
     node_.Subscribe(pos_cmd_topic_, &MavPositionControllerPlugin::PositionSetpointCallback, this);
     node_.Subscribe(yaw_cmd_topic_, &MavPositionControllerPlugin::YawSetpointCallback, this);
     // clang-format on
@@ -254,7 +250,14 @@ public:
     const gz::msgs::Time stamp = gz::msgs::Convert(info.simTime);
 
     // Get Model pose
-    // pose_ = gz::sim::worldPose(model_.Entity(), ecm);
+    pose_ = gz::sim::worldPose(model_.Entity(), ecm);
+
+    // Publish pose message
+    gz::msgs::Pose pose_msg;
+    pose_msg.mutable_header()->mutable_stamp()->CopyFrom(stamp);
+    gz::msgs::Set(pose_msg.mutable_position(), pose_.Pos());
+    gz::msgs::Set(pose_msg.mutable_orientation(), pose_.Rot());
+    pose_pub_.Publish(pose_msg);
 
     // Publish twist message
     gz::msgs::Twist twist_msg;

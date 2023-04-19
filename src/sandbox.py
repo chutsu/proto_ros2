@@ -21,16 +21,19 @@ from mpl_toolkits import mplot3d
 
 def convert_msg(msg):
     if isinstance(msg, PoseStamped):
+        ts = int(msg.header.stamp.sec * 1e9) + msg.header.stamp.nanosec
         r = msg.pose.position
         q = msg.pose.orientation
-        return proto.pose2tf([r.x, r.y, r.z, q.x, q.x, q.y, q.w])
+        return (ts, proto.pose2tf([r.x, r.y, r.z, q.x, q.y, q.z, q.w]))
 
     elif isinstance(msg, Image):
+        ts = int(msg.header.stamp.sec * 1e9) + msg.header.stamp.nanosec
         cv_bridge = CvBridge()
-        return cv_bridge.imgmsg_to_cv2(msg)
+        return (ts, cv_bridge.imgmsg_to_cv2(msg))
 
     elif isinstance(msg, JointState):
-        return msg.position[0]
+        ts = int(msg.header.stamp.sec * 1e9) + msg.header.stamp.nanosec
+        return (ts, msg.position[0])
 
     else:
         raise NotImplementedError()
@@ -42,17 +45,15 @@ def plot_gimbal_chains():
     T_WF = proto.tf(q_WF, r_WF)
 
     gimbal_pose = np.array([0, 0, 1, 0, 0, 0, 1])
-    gimbal_ext = np.array([-0.05, 0, -0.02, 1, 0, 0, 4.63268e-05])
-    gimbal_link0 = np.array([0.0175, 0, 0.0425, 5.48441e-21, 0.707108, 2.39578e-21, 0.707105])
-    gimbal_link1 = np.array([0, -1.35525e-20, 0, -0.707108, -7.29657e-17, 1.33061e-16, 0.707105])
-    cam0_ext = np.array([-2.22045e-16, 2.77556e-17, 0.05, 0.5, -0.5, 0.499998, 0.500002])
-    cam1_ext = np.array([-1.11022e-16, 1.38778e-17, -0.05, 0.5, -0.5, 0.499998, 0.500002])
-    cam0_pose = np.array([-0.0325002, -0.0500039, 0.937505, 0.500023, -0.499977, 0.500025, -0.499975])
-    cam1_pose = np.array([-0.0324998, 0.0499961, 0.937495, 0.500023, -0.499977, 0.500025, -0.499975])
+    gimbal_ext = np.array([-0.05, 0, -0.05, 1, 0, 0, 4.63268e-05])
+    gimbal_link0 = np.array([0, -1.35525e-20, 0.05, 5.48441e-21, 0.707108, 2.39578e-21, 0.707105])
+    gimbal_link1 = np.array([2.22045e-16, -1.35525e-20, 0.05, 0.707108, -4.03592e-17, -7.3647e-17, 0.707105])
+    cam0_ext = np.array([-1.11022e-16, 1.00615e-17, 0.05, -0.5, 0.5, 0.500002, 0.499998])
+    cam1_ext = np.array([0, 1.07552e-17, -0.05, -0.5, 0.5, 0.500002, 0.499998])
 
     joint0 = 0.0
     joint1 = 0.0
-    joint2 = 0.2
+    joint2 = 0.0
 
     T_WB = proto.pose2tf(gimbal_pose)
     T_BM0 = proto.pose2tf(gimbal_ext)
@@ -186,10 +187,10 @@ class Sandbox(Node):
         joint0_sub = message_filters.Subscriber(self, JointState, '/gimbal/joint0/state')
         joint1_sub = message_filters.Subscriber(self, JointState, '/gimbal/joint1/state')
         joint2_sub = message_filters.Subscriber(self, JointState, '/gimbal/joint2/state')
-        pose_sub = message_filters.Subscriber(self, PoseStamped, '/model/x500/pose')
+        pose_sub = message_filters.Subscriber(self, PoseStamped, '/x500/pose/state')
         sync_subs = [cam0_sub, cam1_sub, joint0_sub, joint1_sub, joint2_sub, pose_sub]
         msg_time_syncer = message_filters.TimeSynchronizer(sync_subs, 5)
-        msg_time_syncer.registerCallback(self.sync_callback)
+        msg_time_syncer.registerCallback(self.sync_cb)
 
         self.add_sub('/gimbal/mode/state', Int32, self.mode_cb)
         self.add_sub('/gimbal/target_attitude/state', Vector3, self.target_attitude_cb)
@@ -202,15 +203,24 @@ class Sandbox(Node):
     def add_sub(self, topic, msg_type, cb, qs=1):
         self.subs[topic] = self.create_subscription(msg_type, topic, cb, qs)
 
-    def sync_callback(self, cam0_msg, cam1_msg, joint0_msg, joint1_msg, joint2_msg, pose_msg):
-        cam0_frame = convert_msg(cam0_msg)
-        cam1_frame = convert_msg(cam1_msg)
-        joint0 = convert_msg(joint0_msg)
-        joint1 = convert_msg(joint1_msg)
-        joint2 = convert_msg(joint2_msg)
-        T_WS = convert_msg(pose_msg)
+    def sync_cb(self, cam0_msg, cam1_msg, joint0_msg, joint1_msg, joint2_msg, pose_msg):
+        cam0_ts, cam0_frame = convert_msg(cam0_msg)
+        cam1_ts, cam1_frame = convert_msg(cam1_msg)
+        joint0_ts, joint0 = convert_msg(joint0_msg)
+        joint1_ts, joint1 = convert_msg(joint1_msg)
+        joint2_ts, joint2 = convert_msg(joint2_msg)
+        pose_ts, T_WS = convert_msg(pose_msg)
 
-        cam0_viz = plot_camera_overlay(0, cam0_frame, T_WS, joint0, joint1, -joint2)
+        # print(f"cam0_ts: {cam0_ts}")
+        # print(f"cam1_ts: {cam1_ts}")
+        # print(f"joint0_ts: {joint0_ts}")
+        # print(f"joint1_ts: {joint1_ts}")
+        # print(f"joint2_ts: {joint2_ts}")
+        # print(f"pose_ts: {pose_ts}")
+        # print(f"pose_msg: {pose_msg}")
+        # print()
+
+        cam0_viz = plot_camera_overlay(0, cam0_frame, T_WS, joint0, joint1, joint2)
         cv2.imshow("camera", cam0_viz)
         cv2.waitKey(1)
 
@@ -229,7 +239,7 @@ class Sandbox(Node):
         self.target_point = np.array([msg.x, msg.y, msg.z])
 
     def aprilgrid_pose_cb(self, msg):
-        self.T_WF = convert_msg(msg)
+        ts, self.T_WF = convert_msg(msg)
 
     def set_joint(self, joint_idx, joint_angle):
         msg = Float64()

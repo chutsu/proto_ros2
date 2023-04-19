@@ -668,15 +668,6 @@
       </rotorConfiguration>
     </plugin>
 
-    <!-- Odometry Plugin -->
-    <plugin
-      filename="gz-sim-odometry-publisher-system"
-      name="gz::sim::systems::OdometryPublisher">
-      <dimensions>3</dimensions>
-      <odom_topic>/x500/odom/state</odom_topic>
-      <tf_topic>/x500/pose/state</tf_topic>
-    </plugin>
-
     <!-- Position Controller Plugin -->
     <plugin
         filename="libMavPositionControllerPlugin"
@@ -865,17 +856,17 @@
 
     <!-- Stereo Camera -->
     <link name="stereo_camera">
-      <pose relative_to="gimbal_pitch_motor">0.0 0.0 0.0 0.0 3.14 0.0</pose>
+      <pose relative_to="gimbal_pitch_motor">0.0 0.0 0.0 0.0 0.0 0.0</pose>
       <inertial>
         <inertia>
-          <ixx>0.001</ixx>
+          <ixx>0.000000000001</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.001</iyy>
+          <iyy>0.000000000001</iyy>
           <iyz>0</iyz>
-          <izz>0.001</izz>
+          <izz>0.000000000001</izz>
         </inertia>
-        <mass>0.0001</mass>
+        <mass>0.0000000000001</mass>
       </inertial>
       <visual name="stereo_camera_visual">
         <geometry><box><size>0.02 0.02 0.10</size></box></geometry>
@@ -1041,7 +1032,7 @@
       <topic>/gimbal/joint2/cmd</topic>
       <p_gain>100</p_gain>
       <i_gain>0.0</i_gain>
-      <d_gain>1</d_gain>
+      <d_gain>0.5</d_gain>
       <i_max>1</i_max>
       <i_min>-1</i_min>
       <cmd_max>1000</cmd_max>
@@ -1069,14 +1060,14 @@
       <target_attitude_cmd_topic>/gimbal/target_attitude/cmd</target_attitude_cmd_topic>
     </plugin>
 
-    <!-- Gimbal pose plugin -->
-    <plugin
-      filename="gz-sim-pose-publisher-system"
-      name="gz::sim::systems::PosePublisher">
-      <publish_link_pose>false</publish_link_pose>
-      <publish_collision_pose>false</publish_collision_pose>
-      <publish_visual_pose>false</publish_visual_pose>
-      <publish_nested_model_pose>true</publish_nested_model_pose>
-    </plugin>
+    <!-- <!-1- Gimbal pose plugin -1-> -->
+    <!-- <plugin -->
+    <!--   filename="gz-sim-pose-publisher-system" -->
+    <!--   name="gz::sim::systems::PosePublisher"> -->
+    <!--   <publish_link_pose>false</publish_link_pose> -->
+    <!--   <publish_collision_pose>false</publish_collision_pose> -->
+    <!--   <publish_visual_pose>false</publish_visual_pose> -->
+    <!--   <publish_nested_model_pose>true</publish_nested_model_pose> -->
+    <!-- </plugin> -->
   </model>
 </sdf>

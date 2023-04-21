@@ -25,7 +25,6 @@
 
 #define GIMBAL_IDEL_MODE 0
 #define GIMBAL_STABILIZATION_MODE 1
-#define GIMBAL_TRACKING_MODE 2
 
 class GimbalControllerPlugin : public gz::sim::System,
                                public gz::sim::ISystemConfigure,
@@ -225,8 +224,6 @@ public:
       joint0_cmd = -yaw_error;
       joint1_cmd = roll_error;
       joint2_cmd = pitch_error;
-
-    } else if (mode_ == GIMBAL_TRACKING_MODE) {
     }
 
     // -- Publish joint commnds

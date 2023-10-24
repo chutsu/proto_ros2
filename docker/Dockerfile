@@ -11,14 +11,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Permissions
 RUN apt-get update && apt-get install -y sudo
-ARG USERNAME
-ARG USER_ID
-ARG GROUP_ID
-RUN addgroup --gid $GROUP_ID $USERNAME
-RUN adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID $USERNAME
-ADD sudoers.txt /etc/sudoers
-RUN chmod 440 /etc/sudoers
-ENV HOME /home/$USERNAME
+ARG USER=docker
+ARG PASS=docker
+ARG UID=1000
+ARG GID=1000
+RUN useradd -m ${USER} --uid=${UID} && echo "${USER}:${PASS}" | chpasswd
+RUN adduser ${USER} sudo
+ENV HOME /home/$USER
 
 # Install ROS2 GPG key
 RUN apt-get update
@@ -26,6 +25,7 @@ RUN apt-get install -qqy \
   lsb-release \
   build-essential \
   git \
+  vim \
   curl \
   software-properties-common
 RUN add-apt-repository universe
@@ -41,33 +41,43 @@ RUN apt-get update -y
 RUN apt-get install -y ros-$ROS2_VERSION-desktop
 RUN apt-get install -y python3-argcomplete python3-pip python3-future ros-dev-tools
 
+# Install Gazebo
+RUN apt-get install -y ros-$ROS2_VERSION-ros-gz
+RUN apt-get update -y
+RUN apt-get install lsb-release wget gnupg -y
+RUN wget https://packages.osrfoundation.org/gazebo.gpg \
+  -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
+RUN apt-get update -y
+RUN apt-get install -y ignition-fortress
+
 # Switch to $USERNAME
-USER $USERNAME
+USER $USER
 WORKDIR $HOME
 RUN echo 'export PS1="[\u@docker] \W # "' >> $HOME/.bashrc
 
-# Create PX4 workspace [$HOME/px4_ws]
-# Downloads the following to [$HOME/px4_ws/src]:
-# - PX4-Autopilot
-# - px4_msgs
-# - px4_ros_com
-RUN mkdir -p $HOME/px4_ws/src
-WORKDIR $HOME/px4_ws/src
-RUN git clone https://github.com/PX4/PX4-Autopilot.git
-RUN git clone https://github.com/PX4/px4_msgs.git
-RUN git clone https://github.com/PX4/px4_ros_com.git
-RUN pip3 install kconfiglib
-RUN pip3 install jinja2
-RUN pip3 install --user jsonschema
-RUN pip3 install --user -U empy pyros-genmsg setuptools
-# -- Build PX4
-WORKDIR $HOME/px4_ws/src/PX4-Autopilot
-RUN make
-# -- Build PX4 ros2 packages
-WORKDIR $HOME/px4_ws
-RUN source /opt/ros/humble/setup.bash \
-  && colcon build
-RUN . install/local_setup.bash
+
+# # Create PX4 workspace [$HOME/px4_ws]
+# # Downloads the following to [$HOME/px4_ws/src]:
+# # - PX4-Autopilot
+# # - px4_msgs
+# # - px4_ros_com
+# RUN mkdir -p $HOME/px4_ws/src
+# WORKDIR $HOME/px4_ws/src
+# RUN git clone https://github.com/PX4/PX4-Autopilot.git
+# RUN git clone https://github.com/PX4/px4_msgs.git
+# RUN git clone https://github.com/PX4/px4_ros_com.git
+# RUN pip3 install kconfiglib
+# RUN pip3 install jinja2
+# RUN pip3 install --user jsonschema
+# RUN pip3 install --user -U empy pyros-genmsg setuptools
+# # -- Build PX4
+# WORKDIR $HOME/px4_ws/src/PX4-Autopilot
+# RUN make
+# # -- Build PX4 ros2 packages
+# WORKDIR $HOME/px4_ws
+# RUN source /opt/ros/humble/setup.bash && colcon build
+# RUN . install/local_setup.bash
 
 # Entry point script
 # COPY entry.sh /

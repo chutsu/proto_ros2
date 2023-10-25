@@ -50,20 +50,29 @@ RUN wget https://packages.osrfoundation.org/gazebo.gpg \
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
 RUN apt-get update -y
 RUN apt-get install -y ignition-fortress
+RUN apt-get install -y libgz-plugin2-* libgz-common5-* libgz-sim7-*
+
+# Install Oak-D DepthAI
+RUN apt-get install -y ros-humble-depthai-*
+
+# Install Proto
+WORKDIR $HOME
+RUN git clone https://github.com/chutsu/proto \
+  && cd proto && make third_party \
+  && make build && make install
 
 # Switch to $USERNAME
 USER $USER
 WORKDIR $HOME
 RUN echo 'export PS1="[\u@docker] \W # "' >> $HOME/.bashrc
 
-
-# # Create PX4 workspace [$HOME/px4_ws]
-# # Downloads the following to [$HOME/px4_ws/src]:
+# # Create PX4 workspace [$HOME/proto_ws]
+# # Downloads the following to [$HOME/proto_ws/src]:
 # # - PX4-Autopilot
 # # - px4_msgs
 # # - px4_ros_com
-# RUN mkdir -p $HOME/px4_ws/src
-# WORKDIR $HOME/px4_ws/src
+# RUN mkdir -p $HOME/proto_ws/src
+# WORKDIR $HOME/proto_ws/src
 # RUN git clone https://github.com/PX4/PX4-Autopilot.git
 # RUN git clone https://github.com/PX4/px4_msgs.git
 # RUN git clone https://github.com/PX4/px4_ros_com.git
@@ -72,10 +81,10 @@ RUN echo 'export PS1="[\u@docker] \W # "' >> $HOME/.bashrc
 # RUN pip3 install --user jsonschema
 # RUN pip3 install --user -U empy pyros-genmsg setuptools
 # # -- Build PX4
-# WORKDIR $HOME/px4_ws/src/PX4-Autopilot
+# WORKDIR $HOME/proto_ws/src/PX4-Autopilot
 # RUN make
 # # -- Build PX4 ros2 packages
-# WORKDIR $HOME/px4_ws
+# WORKDIR $HOME/proto_ws
 # RUN source /opt/ros/humble/setup.bash && colcon build
 # RUN . install/local_setup.bash
 

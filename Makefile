@@ -24,11 +24,17 @@ run_docker: ## Run proto_ros2 docker
 		-v /tmp/.X11-unix:/tmp/.X11-unix \
 		-v /tmp:/tmp \
 		-v $(DATA_DIR):$(DATA_DIR) \
-		--privileged \
+		-v $(PWD):/home/docker/proto_ros2 \
+		-v /dev/bus/usb:/dev/bus/usb --device-cgroup-rule='c 189:* rmw' \
+		--ipc=host \
+		--pid=host \
 		--network="host" \
 		-it --rm proto_ros2 /bin/bash
 
-build: ## Build proto_ws
+${HOME}/proto_ws/src/proto_ros2:
+	@cd ${HOME} && mkdir -p ${HOME}/proto_ws/src && cd ${HOME}/proto_ws/src && ln -s ${PWD} .
+
+build: ${HOME}/proto_ws/src/proto_ros2 ## Build proto_ws
 	@cd ${ROS2_WS} && colcon build
 
 sim_calib:  ## Run calibration simulation

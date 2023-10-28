@@ -14,7 +14,7 @@ FIND_PACKAGE(geometry_msgs REQUIRED)
 FIND_PACKAGE(rclpy REQUIRED)
 FIND_PACKAGE(rclcpp REQUIRED)
 FIND_PACKAGE(rclcpp_components REQUIRED)
-FIND_PACKAGE(px4_msgs REQUIRED)
+# FIND_PACKAGE(px4_msgs REQUIRED)
 FIND_PACKAGE(message_filters REQUIRED)
 FIND_PACKAGE(cv_bridge REQUIRED)
 
@@ -50,14 +50,14 @@ FIND_PACKAGE(LAPACK REQUIRED)
 
 
 # INCLUDES AND LIB DIRECTORIES
-INCLUDE_DIRECTORIES(include ${OpenCV_INCLUDE_DIRS} /opt/proto/include)
-LINK_DIRECTORIES(/opt/proto/lib)
+INCLUDE_DIRECTORIES(include ${OpenCV_INCLUDE_DIRS} /opt/proto/include /home/docker/proto/third_party/include)
+LINK_DIRECTORIES(/opt/proto/lib /home/docker/proto/third_party/lib)
 
 
 # EXECUTABLES
-ADD_EXECUTABLE(offboard src/offboard.cpp)
-AMENT_TARGET_DEPENDENCIES(offboard rclcpp px4_msgs)
-INSTALL(TARGETS offboard DESTINATION lib/${PROJECT_NAME})
+# ADD_EXECUTABLE(offboard src/offboard.cpp)
+# AMENT_TARGET_DEPENDENCIES(offboard rclcpp px4_msgs)
+# INSTALL(TARGETS offboard DESTINATION lib/${PROJECT_NAME})
 
 # ADD_EXECUTABLE(gz_gimbal src/gz_gimbal.cpp)
 # AMENT_TARGET_DEPENDENCIES(
@@ -82,7 +82,7 @@ AMENT_EXPORT_DEPENDENCIES(
   std_msgs
 	sensor_msgs
 	geometry_msgs
-	px4_msgs
+	# px4_msgs
   message_filters
   cv_bridge
   depthai_ros_msgs

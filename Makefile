@@ -26,6 +26,10 @@ run_docker: ## Run proto_ros2 docker
 		-v $(DATA_DIR):$(DATA_DIR) \
 		-v $(PWD):/home/docker/proto_ros2 \
 		-v /dev/bus/usb:/dev/bus/usb --device-cgroup-rule='c 189:* rmw' \
+		-v /dev/shm:/dev/shm \
+		-v /dev/dri:/dev/dri \
+		-v $(HOME)/.cache:$(HOME)/.cache \
+		--privileged \
 		--ipc=host \
 		--pid=host \
 		--network="host" \
@@ -35,7 +39,7 @@ ${HOME}/proto_ws/src/proto_ros2:
 	@cd ${HOME} && mkdir -p ${HOME}/proto_ws/src && cd ${HOME}/proto_ws/src && ln -s ${PWD} .
 
 build: ${HOME}/proto_ws/src/proto_ros2 ## Build proto_ws
-	@cd ${ROS2_WS} && colcon build
+	@cd ${ROS2_WS} && GZ_VERSION=garden MAKEFLAGS="-j4" colcon build
 
 sim_calib:  ## Run calibration simulation
 	@cd ${ROS2_WS} \
@@ -70,7 +74,7 @@ sim_sandbox:  ## Run sandbox simulation
 		&& ros2 launch proto_ros2 proto_ros2.launch.py \
 			gz_world:=sim_sandbox.sdf \
 			run_on_start:=true \
-			enable_headless:=true \
+			enable_headless:=false \
 			has_mav:=true \
 			has_gimbal:=true \
 			has_aprilgrid:=true

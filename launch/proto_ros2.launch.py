@@ -126,6 +126,7 @@ def launch_setup(context, *args, **kwargs):
 
     # Set gazebo environment variables
     pkg_share_dir = get_package_share_directory('proto_ros2')
+    print(f"pkg_share_dir: {pkg_share_dir}")
     models_path = pkg_share_dir + "/gazebo/models"
     worlds_path = pkg_share_dir + "/gazebo/worlds"
     plugins_path = pkg_share_dir + "/gazebo/plugins"
@@ -137,7 +138,7 @@ def launch_setup(context, *args, **kwargs):
     config_path = os.path.join(proj_dir, "gazebo/configs/sim_sandbox.config")
 
     # Gazebo Simulator
-    cmd = ['gz', 'sim', gz_world, '--gui-config', config_path]
+    cmd = ['env', '-u', 'WAYLAND_DISPLAY', 'gz', 'sim', gz_world, '--gui-config', config_path]
     if verbose:
         cmd.append("-v")
 
@@ -156,8 +157,8 @@ def launch_setup(context, *args, **kwargs):
     descs.append(gz_proc)
 
     # -- RQT
-    if enable_rqt:
-        descs.append(rqt_proc())
+    # if enable_rqt:
+    #     descs.append(rqt_proc())
 
     # -- MAV
     if has_mav:
@@ -168,8 +169,8 @@ def launch_setup(context, *args, **kwargs):
         descs.extend(ros_gz_gimbal())
 
     # -- APRILGRID
-    if has_aprilgrid:
-        descs.extend(ros_gz_aprilgrid())
+    # if has_aprilgrid:
+    #     descs.extend(ros_gz_aprilgrid())
 
     return descs
 

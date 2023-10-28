@@ -42,7 +42,6 @@ RUN apt-get install -y ros-$ROS2_VERSION-desktop
 RUN apt-get install -y python3-argcomplete python3-pip python3-future ros-dev-tools
 
 # Install Gazebo
-RUN apt-get install -y ros-$ROS2_VERSION-ros-gz
 RUN apt-get update -y
 RUN apt-get install lsb-release wget gnupg -y
 RUN wget https://packages.osrfoundation.org/gazebo.gpg \
@@ -55,13 +54,26 @@ RUN apt-get install -y libgz-plugin2-* libgz-common5-* libgz-sim7-*
 # Install Oak-D DepthAI
 RUN apt-get install -y ros-humble-depthai-*
 
-# Install Proto
+# Install proto
 WORKDIR $HOME
 RUN git clone https://github.com/chutsu/proto \
   && cd proto && make third_party \
   && make build && make install
 
-# Switch to $USERNAME
+# Install ros-gz
+RUN apt-get install -y ros-$ROS2_VERSION-actuator-msgs ros-$ROS2_VERSION-gps-msgs
+WORKDIR $HOME
+RUN mkdir -p $HOME/proto_ws/src \
+  && cd $HOME/proto_ws/src \
+  && git clone https://github.com/gazebosim/ros_gz \
+  && cd ros_gz \
+  && git checkout humble \
+  && export GZ_VERSION=garden \
+  && . /opt/ros/$ROS2_VERSION/setup.bash \
+  && MAKEFLAGS="-j4" colcon build
+RUN chown -R $USER:$USER $HOME/proto_ws
+
+# Switch to $USER
 USER $USER
 WORKDIR $HOME
 RUN echo 'export PS1="[\u@docker] \W # "' >> $HOME/.bashrc
@@ -89,5 +101,5 @@ RUN echo 'export PS1="[\u@docker] \W # "' >> $HOME/.bashrc
 # RUN . install/local_setup.bash
 
 # Entry point script
-# COPY entry.sh /
-# ENTRYPOINT ["/entry.sh"]
+COPY entry.sh /
+ENTRYPOINT ["/entry.sh"]

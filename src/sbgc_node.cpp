@@ -2,6 +2,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <mutex>
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
@@ -15,6 +16,7 @@ using namespace std::chrono_literals;
 using std::placeholders::_1;
 
 struct sbgc_node_t : public rclcpp::Node {
+  std::mutex mtx;
   sbgc_t sbgc;
   rclcpp::TimerBase::SharedPtr timer;
   rclcpp::Publisher<Vec3Msg>::SharedPtr pub_joints;
@@ -47,6 +49,7 @@ struct sbgc_node_t : public rclcpp::Node {
   }
 
   void timer_update() {
+    std::lock_guard<std::mutex> guard(mtx);
     if (sbgc_update(&sbgc) != 0) {
       return;
     }
@@ -59,7 +62,8 @@ struct sbgc_node_t : public rclcpp::Node {
     pub_joints->publish(msg);
   }
 
-  void joints_callback(const Vec3Msg::SharedPtr msg) const {
+  void joints_callback(const Vec3Msg::SharedPtr msg) {
+    std::lock_guard<std::mutex> guard(mtx);
     const float roll = msg->x;
     const float pitch = msg->y;
     const float yaw = msg->z;

@@ -443,12 +443,139 @@ rs2_format rs2_format_convert(const std::string &format) {
   FATAL("Opps! Unsupported format [%s]!", format.c_str());
 }
 
+// Create Vector3 Message
+geometry_msgs::msg::Vector3Stamped
+create_vec3_msg(const rs2::motion_frame &f, const std::string &frame_id) {
+  // Form msg stamp
+  const int64_t ts_ns = f.get_timestamp() * 1e6;
+  rclcpp::Time msg_stamp{ts_ns};
+
+  // Form msg header
+  std_msgs::msg::Header header;
+  header.frame_id = frame_id;
+  header.stamp = msg_stamp;
+
+  // Form msg
+  const rs2_vector data = f.get_motion_data();
+  geometry_msgs::msg::Vector3Stamped msg;
+  msg.header = header;
+  msg.vector.x = data.x;
+  msg.vector.y = data.y;
+  msg.vector.z = data.z;
+
+  return msg;
+}
+
+// Create Image Message
+sensor_msgs::msg::Image::SharedPtr
+create_image_msg(const rs2::video_frame &vf, const std::string &frame_id) {
+  // Form msg stamp
+  const int64_t ts_ns = vframe2ts(vf, true);
+  rclcpp::Time msg_stamp{ts_ns};
+
+  // Form msg header
+  std_msgs::msg::Header header = std_msgs::msg::Header();
+  header.frame_id = frame_id;
+  header.stamp = msg_stamp;
+
+  // Image message
+  const int width = vf.get_width();
+  const int height = vf.get_height();
+  const std::string encoding = "mono8";
+  const cv::Mat cv_frame = frame2cvmat(vf, width, height, CV_8UC1);
+  return cv_bridge::CvImage(std_msgs::msg::Header(), encoding, cv_frame)
+      .toImageMsg();
+}
+
+// Create IMU message
+sensor_msgs::msg::Imu create_imu_msg(const double ts_s,
+                                     const Eigen::Vector3d &gyro,
+                                     const Eigen::Vector3d &accel,
+                                     const std::string &frame_id) {
+  sensor_msgs::msg::Imu msg;
+
+  msg.header.frame_id = frame_id;
+  msg.header.stamp = rclcpp::Time{(int64_t) (ts_s * 1e9)};
+  msg.angular_velocity.x = gyro.x();
+  msg.angular_velocity.y = gyro.y();
+  msg.angular_velocity.z = gyro.z();
+  msg.linear_acceleration.x = accel.x();
+  msg.linear_acceleration.y = accel.y();
+  msg.linear_acceleration.z = accel.z();
+
+  return msg;
+}
+
 // Signal handler
 bool keep_running = true;
 void signal_handler(int sig) {
   UNUSED(sig);
   keep_running = false;
 }
+
+// RealSense D435I
+struct rs_d435i_t {
+  // Settings
+  int ir_width = 640;
+  int ir_height = 480;
+  std::string ir_format = "Y8";
+  int ir_fps = 15;
+  double ir_exposure = 50000.0;
+  const int accel_hz = 250;
+  const int gyro_hz = 400;
+
+  // RealSense config and device
+  rs2::config cfg;
+  rs2::device device;
+
+  rs_d435i_t() {
+    // Connect to device
+    rs2::context ctx;
+    rs2::device_list devices = ctx.query_devices();
+    if (devices.size() == 0) {
+      FATAL("No device connected, please connect a RealSense device");
+    }
+    device = devices[0];
+
+    // Print device basic info
+    // clang-format off
+    printf("SDK version:      %s\n", RS2_API_FULL_VERSION_STR);
+    printf("Device Name:      %s\n", device.get_info(RS2_CAMERA_INFO_NAME));
+    printf("Serial Number:    %s\n", device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+    printf("Firmware Version: %s\n", device.get_info(RS2_CAMERA_INFO_FIRMWARE_VERSION));
+    printf("Physical Port:    %s\n", device.get_info(RS2_CAMERA_INFO_PHYSICAL_PORT));
+    fflush(stdout);
+    // clang-format on
+
+    configure_stereo_module();
+    configure_motion_module();
+  }
+
+  void configure_stereo_module() {
+    rs2::sensor stereo;
+    if (rs2_get_sensor(device, "Stereo Module", stereo) != 0) {
+      FATAL("This RealSense device does not have a [Stereo Module]");
+    }
+    // clang-format off
+    const auto format = rs2_format_convert(ir_format);
+    cfg.enable_stream(RS2_STREAM_INFRARED, 1, ir_width, ir_height, format, ir_fps);
+    cfg.enable_stream(RS2_STREAM_INFRARED, 2, ir_width, ir_height, format, ir_fps);
+    stereo.set_option(RS2_OPTION_EXPOSURE, ir_exposure);
+    stereo.set_option(RS2_OPTION_EMITTER_ENABLED, false);
+    stereo.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
+    // clang-format on
+  }
+
+  void configure_motion_module() {
+    rs2::sensor motion;
+    if (rs2_get_sensor(device, "Motion Module", motion) != 0) {
+      FATAL("This RealSense device does not have a [Motion Module]");
+    }
+    motion.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
+    cfg.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F, accel_hz);
+    cfg.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F, gyro_hz);
+  }
+};
 
 // Run Intel D435i Node
 int main(int argc, char *argv[]) {
@@ -472,118 +599,7 @@ int main(int argc, char *argv[]) {
   // clang-format on
 
   // Connect to device
-  rs2::context ctx;
-  rs2::device_list devices = ctx.query_devices();
-  if (devices.size() == 0) {
-    FATAL("No device connected, please connect a RealSense device");
-  }
-  rs2::device device = devices[0];
-
-  // Print device basic info
-  // clang-format off
-  printf("SDK version:      %s\n", RS2_API_FULL_VERSION_STR);
-  printf("Device Name:      %s\n", device.get_info(RS2_CAMERA_INFO_NAME));
-  printf("Serial Number:    %s\n", device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
-  printf("Firmware Version: %s\n", device.get_info(RS2_CAMERA_INFO_FIRMWARE_VERSION));
-  printf("Physical Port:    %s\n", device.get_info(RS2_CAMERA_INFO_PHYSICAL_PORT));
-  fflush(stdout);
-  // clang-format on
-
-  // Configure stream
-  rs2::config cfg;
-  // -- Configure IR stereo cameras
-  const int ir_width = 640;
-  const int ir_height = 480;
-  const auto ir_format = rs2_format_convert("Y8");
-  const int ir_fps = 15;
-  const double ir_exposure = 50000.0;
-
-  // clang-format off
-  rs2::sensor stereo;
-  if (rs2_get_sensor(device, "Stereo Module", stereo) != 0) {
-    FATAL("This RealSense device does not have a [Stereo Module]");
-  }
-  cfg.enable_stream(RS2_STREAM_INFRARED, 1, ir_width, ir_height, ir_format, ir_fps);
-  cfg.enable_stream(RS2_STREAM_INFRARED, 2, ir_width, ir_height, ir_format, ir_fps);
-  stereo.set_option(RS2_OPTION_EXPOSURE, ir_exposure);
-  stereo.set_option(RS2_OPTION_EMITTER_ENABLED, false);
-  stereo.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
-  // clang-format on
-
-  // -- Configure Motion Module
-  const int accel_hz = 250;
-  const int gyro_hz = 400;
-
-  rs2::sensor motion;
-  if (rs2_get_sensor(device, "Motion Module", motion) != 0) {
-    FATAL("This RealSense device does not have a [Motion Module]");
-  }
-  motion.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
-  cfg.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F, accel_hz);
-  cfg.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F, gyro_hz);
-
-  // Create geometry_msgs::msg::Vector3 Message
-  auto create_vec3_msg = [&](const rs2::motion_frame &f,
-                             const std::string &frame_id) {
-    // Form msg stamp
-    const int64_t ts_ns = f.get_timestamp() * 1e6;
-    rclcpp::Time msg_stamp{ts_ns};
-
-    // Form msg header
-    std_msgs::msg::Header header;
-    header.frame_id = frame_id;
-    header.stamp = msg_stamp;
-
-    // Form msg
-    const rs2_vector data = f.get_motion_data();
-    geometry_msgs::msg::Vector3Stamped msg;
-    msg.header = header;
-    msg.vector.x = data.x;
-    msg.vector.y = data.y;
-    msg.vector.z = data.z;
-
-    return msg;
-  };
-
-  // Create Image message
-  auto create_image_msg = [&](const rs2::video_frame &vf,
-                              const std::string &frame_id) {
-    // Form msg stamp
-    const int64_t ts_ns = vframe2ts(vf, true);
-    rclcpp::Time msg_stamp{ts_ns};
-
-    // Form msg header
-    std_msgs::msg::Header header = std_msgs::msg::Header();
-    header.frame_id = frame_id;
-    header.stamp = msg_stamp;
-
-    // Image message
-    const int width = vf.get_width();
-    const int height = vf.get_height();
-    const std::string encoding = "mono8";
-    const cv::Mat cv_frame = frame2cvmat(vf, width, height, CV_8UC1);
-    return cv_bridge::CvImage(std_msgs::msg::Header(), encoding, cv_frame)
-        .toImageMsg();
-  };
-
-  // Create IMU message
-  auto create_imu_msg = [&](const double ts_s,
-                            const Eigen::Vector3d &gyro,
-                            const Eigen::Vector3d &accel,
-                            const std::string &frame_id) {
-    sensor_msgs::msg::Imu msg;
-
-    msg.header.frame_id = frame_id;
-    msg.header.stamp = rclcpp::Time{(int64_t) (ts_s * 1e9)};
-    msg.angular_velocity.x = gyro.x();
-    msg.angular_velocity.y = gyro.y();
-    msg.angular_velocity.z = gyro.z();
-    msg.linear_acceleration.x = accel.x();
-    msg.linear_acceleration.y = accel.y();
-    msg.linear_acceleration.z = accel.z();
-
-    return msg;
-  };
+  rs_d435i_t device;
 
   // Publish IR frames
   auto publish_ir_msgs = [&](const rs2::video_frame &ir0,
@@ -633,7 +649,7 @@ int main(int argc, char *argv[]) {
   // Start pipeline
   rs2::pipeline pipe;
   lerp_buf_t lerp_buf;
-  pipe.start(cfg, [&](const rs2::frame &frame) {
+  pipe.start(device.cfg, [&](const rs2::frame &frame) {
     // Handle motion frame
     if (auto mf = frame.as<rs2::motion_frame>()) {
       if (mf && mf.get_profile().stream_type() == RS2_STREAM_ACCEL) {
@@ -661,26 +677,9 @@ int main(int argc, char *argv[]) {
 
     // Stereo Module Callback
     if (rs2::frameset fs = frame.as<rs2::frameset>()) {
-      // Show rgbd ir image
       const auto ir_left = fs.get_infrared_frame(1);
       const auto ir_right = fs.get_infrared_frame(2);
       publish_ir_msgs(ir_left, ir_right);
-
-      // Show stereo image
-      // const int width = ir_left.get_width();
-      // const int height = ir_left.get_height();
-      // cv::Mat frame_left = frame2cvmat(ir_left, width, height, CV_8UC1);
-      // cv::Mat frame_right = frame2cvmat(ir_right, width, height, CV_8UC1);
-      // cv::Mat frame;
-      // cv::hconcat(frame_left, frame_right, frame);
-      // cv::namedWindow("Stereo Module", cv::WINDOW_AUTOSIZE);
-      // cv::imshow("Stereo Module", frame);
-
-      // User input
-      // auto key = cv::waitKey(1);
-      // if (key == 27 || key == 'q') {
-      //   keep_running = false;
-      // }
     }
   });
 

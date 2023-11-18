@@ -19,6 +19,7 @@ FIND_PACKAGE(rclcpp_components REQUIRED)
 FIND_PACKAGE(image_transport REQUIRED)
 FIND_PACKAGE(message_filters REQUIRED)
 FIND_PACKAGE(cv_bridge REQUIRED)
+FIND_PACKAGE(okvis REQUIRED)
 
 # PROTO DEPENDENCIES
 FIND_PACKAGE(BLAS REQUIRED)
@@ -66,6 +67,19 @@ TARGET_LINK_LIBRARIES(
   ${OpenCV_LIBS}
 )
 INSTALL(TARGETS rs_node DESTINATION lib/${PROJECT_NAME})
+
+# -- OKVIS Node
+ADD_EXECUTABLE(okvis_node src/okvis_node.cpp)
+TARGET_LINK_LIBRARIES(
+  okvis_node
+  rclcpp::rclcpp
+  image_transport::image_transport
+  cv_bridge::cv_bridge
+  ${OpenCV_LIBS}
+  ${okvis_LIBS}
+  okvis_time
+)
+INSTALL(TARGETS okvis_node DESTINATION lib/${PROJECT_NAME})
 
 # INSTALL LAUNCH FILES
 INSTALL(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)

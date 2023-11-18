@@ -21,9 +21,8 @@ struct sbgc_node_t : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr timer;
   rclcpp::Publisher<Vec3Msg>::SharedPtr pub_joints;
   rclcpp::Subscription<Vec3Msg>::SharedPtr sub_joints;
-  size_t count_;
 
-  sbgc_node_t() : Node("sbgc_node"), count_(0) {
+  sbgc_node_t() : Node("sbgc_node") {
     // Connect to SBGC
     sbgc_connect(&sbgc, SBGC_DEV);
     if (sbgc_on(&sbgc) != 0) {

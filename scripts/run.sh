@@ -39,18 +39,21 @@ set -e
 # cd ~/proto_ws && colcon build && source $HOME/proto_ws/install/setup.bash && ros2 run proto_ros2 sbgc_node
 # " C-m C-m
 
-# tmux send-keys -t dev -R C-l C-m
-# tmux send-keys -t dev -R "\
-# cd ~/proto_ws \
-#   && colcon build \
-#   && source install/setup.bash  \
-#   && ros2 run proto_ros2 rs_node --cmake-args -DCMAKE_BUILD_TYPE=Release
-# " C-m C-m
-
 tmux send-keys -t dev -R C-l C-m
 tmux send-keys -t dev -R "\
 cd ~/proto_ws \
   && colcon build \
   && source install/setup.bash  \
-  && ros2 run proto_ros2 okvis_node
+  && ros2 run proto_ros2 rs_node
 " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+# cd ~/proto_ws \
+#   && colcon build \
+#   && source install/setup.bash  \
+#   && ros2 run proto_ros2 okvis_node \
+#     --ros-args \
+#     -p config_path:=/home/chutsu/config_realsense_D435i_Chris.yaml \
+#     -p dbow_dir:=/home/chutsu/projects/okvis2
+# " C-m C-m

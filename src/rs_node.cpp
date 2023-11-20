@@ -483,7 +483,7 @@ create_image_msg(const rs2::video_frame &vf, const std::string &frame_id) {
   const int height = vf.get_height();
   const std::string encoding = "mono8";
   const cv::Mat cv_frame = frame2cvmat(vf, width, height, CV_8UC1);
-  return cv_bridge::CvImage(std_msgs::msg::Header(), encoding, cv_frame)
+  return cv_bridge::CvImage(header, encoding, cv_frame)
       .toImageMsg();
 }
 
@@ -582,7 +582,7 @@ int main(int argc, char *argv[]) {
   // Initialize ROS node
   rclcpp::init(argc, argv);
   const rclcpp::NodeOptions options;
-  const auto node = rclcpp::Node::make_shared("intel_d435i_node", options);
+  const auto node = rclcpp::Node::make_shared("rs_node", options);
   const std::string topic_ir0 = "/rs/ir0/image";
   const std::string topic_ir1 = "/rs/ir1/image";
   const std::string topic_acc0 = "/rs/acc0/raw";
@@ -599,6 +599,7 @@ int main(int argc, char *argv[]) {
   // clang-format on
 
   // Connect to device
+  RCLCPP_INFO(node->get_logger(), "Connecting to RealSense Device");
   rs_d435i_t device;
 
   // Publish IR frames
@@ -647,6 +648,7 @@ int main(int argc, char *argv[]) {
   };
 
   // Start pipeline
+  RCLCPP_INFO(node->get_logger(), "Streaming ...");
   rs2::pipeline pipe;
   lerp_buf_t lerp_buf;
   pipe.start(device.cfg, [&](const rs2::frame &frame) {

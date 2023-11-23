@@ -5,12 +5,12 @@
 #include <mutex>
 
 #include <rclcpp/rclcpp.hpp>
-#include <geometry_msgs/msg/vector3.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 
 #define SBGC_IMPLEMENTATION
 #include <sbgc.h>
 #define SBGC_DEV "/dev/ttyUSB0"
-#define Vec3Msg geometry_msgs::msg::Vector3
+#define Vec3Msg geometry_msgs::msg::Vector3Stamped
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -21,6 +21,8 @@ struct sbgc_node_t : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr timer;
   rclcpp::Publisher<Vec3Msg>::SharedPtr pub_joints;
   rclcpp::Subscription<Vec3Msg>::SharedPtr sub_joints;
+
+  double target_angle[3] = {0.0, 0.0, 0.0};
 
   sbgc_node_t() : Node("sbgc_node") {
     // Connect to SBGC
@@ -52,23 +54,24 @@ struct sbgc_node_t : public rclcpp::Node {
     if (sbgc_update(&sbgc) != 0) {
       return;
     }
+    sbgc_set_angle(&sbgc, target_angle[0], target_angle[1], target_angle[2]);
 
     auto msg = Vec3Msg();
-    msg.x = sbgc.data.camera_angles[0];
-    msg.y = sbgc.data.camera_angles[1];
-    msg.z = sbgc.data.camera_angles[2];
+    msg.header = std_msgs::msg::Header();
+    msg.header.frame_id = "sbgc";
+    msg.header.stamp = now();
+    msg.vector.x = sbgc.encoder_angles[0];
+    msg.vector.y = sbgc.encoder_angles[1];
+    msg.vector.z = sbgc.encoder_angles[2];
 
     pub_joints->publish(msg);
   }
 
   void joints_callback(const Vec3Msg::SharedPtr msg) {
     std::lock_guard<std::mutex> guard(mtx);
-    const float roll = msg->x;
-    const float pitch = msg->y;
-    const float yaw = msg->z;
-
-    printf("roll: %f, pitch: %f, yaw: %f\n", roll, pitch, yaw);
-    sbgc_set_angle(&sbgc, roll, pitch, yaw);
+    target_angle[0] = msg->vector.x;
+    target_angle[1] = msg->vector.y;
+    target_angle[2] = msg->vector.z;
   }
 };
 

@@ -39,13 +39,24 @@ set -e
 # cd ~/proto_ws && colcon build && source $HOME/proto_ws/install/setup.bash && ros2 run proto_ros2 sbgc_node
 # " C-m C-m
 
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+# cd ~/proto_ws \
+#   && colcon build \
+#   && source install/setup.bash  \
+#   && ros2 run proto_ros2 rs_node
+# " C-m C-m
+
 tmux send-keys -t dev -R C-l C-m
 tmux send-keys -t dev -R "\
 cd ~/proto_ws \
   && colcon build \
-  && source install/setup.bash  \
-  && ros2 run proto_ros2 rs_node
+  && source install/setup.bash \
+  && ros2 launch proto_ros2 proto_ros2.launch.py
 " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "cd ~/projects/proto_ros2 && python3 scripts/calib_gimbal.py" C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m
 # tmux send-keys -t dev -R "\

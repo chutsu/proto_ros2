@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
@@ -457,6 +458,8 @@ struct rs_d435i_t {
   // RealSense config and device
   rs2::config cfg;
   rs2::device device;
+  rs2::pipeline pipe;
+  lerp_buf_t lerp_buf;
 
   // Callbacks
   // clang-format off
@@ -515,10 +518,7 @@ struct rs_d435i_t {
     cfg.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F, gyro_hz);
   }
 
-  void loop() {
-    rs2::pipeline pipe;
-    lerp_buf_t lerp_buf;
-
+  void start() {
     // Start pipeline
     pipe.start(cfg, [&](const rs2::frame &frame) {
       // Handle motion frame
@@ -564,6 +564,10 @@ struct rs_d435i_t {
         }
       }
     });
+  }
+
+  void loop() {
+    start();
 
     // Block until frame counter threadhold is reached
     signal(SIGINT, realsense_signal_handler);

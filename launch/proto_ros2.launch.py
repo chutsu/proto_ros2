@@ -14,5 +14,4 @@ def generate_launch_description():
         executable="sbgc_node",
         name="sbgc_node"
     )
-
     return launch.LaunchDescription([rs_node, sbgc_node])

@@ -67,6 +67,15 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS rs_node DESTINATION lib/${PROJECT_NAME})
 
+# -- Calib Gimbal
+ADD_EXECUTABLE(calib_gimbal src/calib_gimbal.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_gimbal
+  realsense2
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_gimbal DESTINATION lib/${PROJECT_NAME})
+
 # INSTALL LAUNCH FILES
 INSTALL(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 

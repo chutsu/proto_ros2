@@ -55,12 +55,22 @@ set -e
 #   && ros2 launch proto_ros2 proto_ros2.launch.py
 # " C-m C-m
 
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+#   rm -rf ~/calib_gimbal_data \
+#   && cd ~/proto_ws \
+#   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 calib_gimbal
+# " C-m C-m
+
 tmux send-keys -t dev -R C-l C-m
 tmux send-keys -t dev -R "\
-cd ~/proto_ws \
-  && colcon build \
+  rm -rf ~/calib_gimbal_data \
+  && cd ~/proto_ws \
+  && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
   && source install/setup.bash \
-  && ros2 run proto_ros2 calib_gimbal
+  && ros2 run proto_ros2 calib_camimu_record
 " C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m

@@ -30,6 +30,7 @@ INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${Eigen3_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${realsense2_INCLUDE_DIR})
 INCLUDE_DIRECTORIES(/opt/proto/include)
+LINK_DIRECTORIES(/opt/proto/lib)
 LINK_DIRECTORIES(/usr/local/lib)
 
 # EXPORT DEPENDENCIES
@@ -67,14 +68,35 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS rs_node DESTINATION lib/${PROJECT_NAME})
 
-# -- Calib Gimbal
-ADD_EXECUTABLE(calib_gimbal src/calib_gimbal.cpp)
+# -- Calib Camera Record
+ADD_EXECUTABLE(calib_camera_record src/calib_camera_record.cpp)
 TARGET_LINK_LIBRARIES(
-  calib_gimbal
+  calib_camera_record
   realsense2
+  apriltags
   ${OpenCV_LIBS}
 )
-INSTALL(TARGETS calib_gimbal DESTINATION lib/${PROJECT_NAME})
+INSTALL(TARGETS calib_camera_record DESTINATION lib/${PROJECT_NAME})
+
+# -- Calib Camera-IMU Record
+ADD_EXECUTABLE(calib_camimu_record src/calib_camimu_record.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_camimu_record
+  realsense2
+  apriltags
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_camimu_record DESTINATION lib/${PROJECT_NAME})
+
+# -- Calib Gimbal
+ADD_EXECUTABLE(calib_gimbal_record src/calib_gimbal_record.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_gimbal_record
+  realsense2
+  apriltags
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_gimbal_record DESTINATION lib/${PROJECT_NAME})
 
 # INSTALL LAUNCH FILES
 INSTALL(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)

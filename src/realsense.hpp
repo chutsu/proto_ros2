@@ -11,7 +11,7 @@
 #define __FILENAME__                                                           \
   (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#define FATAL(M, ...)                                                          \
+#define RS_FATAL(M, ...)                                                       \
   fprintf(stdout,                                                              \
           "\033[31m[FATAL] [%s:%d] " M "\033[0m\n",                            \
           __FILENAME__,                                                        \
@@ -19,16 +19,16 @@
           ##__VA_ARGS__);                                                      \
   exit(-1)
 
-#define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
+#define RS_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
 
-#define LOG_ERROR(M, ...)                                                      \
+#define RS_ERROR(M, ...)                                                       \
   fprintf(stderr,                                                              \
           "\033[31m[ERROR] [%s:%d] " M "\033[0m\n",                            \
           __FILENAME__,                                                        \
           __LINE__,                                                            \
           ##__VA_ARGS__)
 
-#define LOG_WARN(M, ...)                                                       \
+#define RS_WARN(M, ...)                                                        \
   fprintf(stdout, "\033[33m[WARN] " M "\033[0m\n", ##__VA_ARGS__)
 
 #define UNUSED(expr)                                                           \
@@ -109,36 +109,36 @@ void print_rsframe_timestamps(const rs2::frame &frame) {
 void print_rs_exception(const rs2::error &err) {
   switch (err.get_type()) {
     case RS2_EXCEPTION_TYPE_UNKNOWN:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_UNKNOWN Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_UNKNOWN Error!");
       break;
     case RS2_EXCEPTION_TYPE_CAMERA_DISCONNECTED:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_CAMERA_DISCONNECTED Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_CAMERA_DISCONNECTED Error!");
       break;
     case RS2_EXCEPTION_TYPE_BACKEND:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_BACKEND Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_BACKEND Error!");
       break;
     case RS2_EXCEPTION_TYPE_INVALID_VALUE:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_INVALID_VALUE Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_INVALID_VALUE Error!");
       break;
     case RS2_EXCEPTION_TYPE_WRONG_API_CALL_SEQUENCE:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_WRONG_API_CALL_SEQUENCE Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_WRONG_API_CALL_SEQUENCE Error!");
       break;
     case RS2_EXCEPTION_TYPE_NOT_IMPLEMENTED:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_NOT_IMPLEMENTED Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_NOT_IMPLEMENTED Error!");
       break;
     case RS2_EXCEPTION_TYPE_DEVICE_IN_RECOVERY_MODE:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_DEVICE_IN_RECOVERY_MODE Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_DEVICE_IN_RECOVERY_MODE Error!");
       break;
     case RS2_EXCEPTION_TYPE_IO:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_IO Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_IO Error!");
       break;
     case RS2_EXCEPTION_TYPE_COUNT:
-      LOG_ERROR("RS2_EXCEPTION_TYPE_COUNT Error!");
+      RS_ERROR("RS2_EXCEPTION_TYPE_COUNT Error!");
       break;
   };
-  LOG_ERROR("FAILED AT FUNC  :  %s", err.get_failed_function().c_str());
-  LOG_ERROR("FAILED WITH ARGS:  %s", err.get_failed_args().c_str());
-  FATAL("[RealSense Exception]: %s", err.what());
+  RS_ERROR("FAILED AT FUNC  :  %s", err.get_failed_function().c_str());
+  RS_ERROR("FAILED WITH ARGS:  %s", err.get_failed_args().c_str());
+  RS_FATAL("[RealSense Exception]: %s", err.what());
 }
 
 // Realsense video frame to OpenCV matrix
@@ -164,7 +164,7 @@ uint64_t vframe2ts(const rs2::video_frame &vf, const bool correct_ts) {
   // Frame metadata timestamp
   const auto frame_meta_key = RS2_FRAME_METADATA_FRAME_TIMESTAMP;
   if (vf.supports_frame_metadata(frame_meta_key) == false) {
-    FATAL("[RS2_FRAME_METADATA_FRAME_TIMESTAMP] Not supported!");
+    RS_FATAL("[RS2_FRAME_METADATA_FRAME_TIMESTAMP] Not supported!");
   }
   const auto frame_ts_us = vf.get_frame_metadata(frame_meta_key);
   const auto frame_ts_ns = static_cast<uint64_t>(frame_ts_us) * 1000;
@@ -172,8 +172,8 @@ uint64_t vframe2ts(const rs2::video_frame &vf, const bool correct_ts) {
   // Sensor metadata timestamp
   const auto sensor_meta_key = RS2_FRAME_METADATA_SENSOR_TIMESTAMP;
   if (vf.supports_frame_metadata(sensor_meta_key) == false) {
-    FATAL("[RS2_FRAME_METADATA_SENSOR_TIMESTAMP] Not supported! "
-          "Did you patch the kernel?");
+    RS_FATAL("[RS2_FRAME_METADATA_SENSOR_TIMESTAMP] Not supported! "
+             "Did you patch the kernel?");
   }
   const auto sensor_ts_us = vf.get_frame_metadata(sensor_meta_key);
   const auto sensor_ts_ns = static_cast<uint64_t>(sensor_ts_us) * 1000;
@@ -215,9 +215,6 @@ struct lerp_buf_t {
   std::deque<Eigen::Vector3d> lerped_gyro_data_;
   std::deque<double> lerped_accel_ts_;
   std::deque<Eigen::Vector3d> lerped_accel_data_;
-
-  lerp_buf_t() {
-  }
 
   bool ready() {
     if (buf_ts_.size() >= 3 && buf_type_.back() == "A") {
@@ -344,7 +341,7 @@ rs2::device rs2_connect() {
   rs2::context ctx;
   rs2::device_list devices = ctx.query_devices();
   if (devices.size() == 0) {
-    FATAL("No device connected, please connect a RealSense device");
+    RS_FATAL("No device connected, please connect a RealSense device");
   }
 
   return devices[0];
@@ -357,7 +354,7 @@ void rs2_list_sensors(const int device_idx = 0) {
   rs2::device_list devices = ctx.query_devices();
   rs2::device device;
   if (devices.size() == 0) {
-    FATAL("No device connected, please connect a RealSense device");
+    RS_FATAL("No device connected, please connect a RealSense device");
   } else {
     device = devices[device_idx]; // Default to first device
   }
@@ -435,7 +432,7 @@ rs2_format rs2_format_convert(const std::string &format) {
   if (format == "COUNT")
     return RS2_FORMAT_COUNT;
 
-  FATAL("Opps! Unsupported format [%s]!", format.c_str());
+  RS_FATAL("Opps! Unsupported format [%s]!", format.c_str());
 }
 
 static bool realsense_keep_running = true;
@@ -474,7 +471,7 @@ struct rs_d435i_t {
     rs2::context ctx;
     rs2::device_list devices = ctx.query_devices();
     if (devices.size() == 0) {
-      FATAL("No device connected, please connect a RealSense device");
+      RS_FATAL("No device connected, please connect a RealSense device");
     }
     device = devices[0];
 
@@ -496,7 +493,7 @@ struct rs_d435i_t {
   void configure_stereo_module() {
     rs2::sensor stereo;
     if (rs2_get_sensor(device, "Stereo Module", stereo) != 0) {
-      FATAL("This RealSense device does not have a [Stereo Module]");
+      RS_FATAL("This RealSense device does not have a [Stereo Module]");
     }
     // clang-format off
     const auto format = rs2_format_convert(ir_format);
@@ -511,7 +508,7 @@ struct rs_d435i_t {
   void configure_motion_module() {
     rs2::sensor motion;
     if (rs2_get_sensor(device, "Motion Module", motion) != 0) {
-      FATAL("This RealSense device does not have a [Motion Module]");
+      RS_FATAL("This RealSense device does not have a [Motion Module]");
     }
     motion.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
     cfg.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F, accel_hz);
@@ -564,6 +561,10 @@ struct rs_d435i_t {
         }
       }
     });
+  }
+
+  void stop() {
+    pipe.stop();
   }
 
   void loop() {

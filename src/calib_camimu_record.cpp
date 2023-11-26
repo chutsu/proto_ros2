@@ -15,8 +15,8 @@ void save_data(
   // Save image pairs
   // -- Setup save directory
   const std::string imu0_dir = save_dir + "/imu0";
-  const std::string cam0_dir = save_dir + "/cam0";
-  const std::string cam1_dir = save_dir + "/cam1";
+  const std::string cam0_dir = save_dir + "/cam0/data";
+  const std::string cam1_dir = save_dir + "/cam1/data";
   const std::string grid0_dir = save_dir + "/grid0";
   dir_create(save_dir);
   dir_create(imu0_dir);
@@ -72,15 +72,15 @@ void save_data(
   // -- IMU data
   const std::string imu_path = imu0_dir + "/data.csv";
   FILE *imu_csv = fopen(imu_path.c_str(), "w");
-  fprintf(imu_csv, "#ts,acc_x,acc_y,acc_z,gyr_x,gyr_y,gyr_z\n");
+  fprintf(imu_csv, "#ts,gyr_x,gyr_y,gyr_z,acc_x,acc_y,acc_z\n");
 
   for (const auto &tuple : imu_data) {
     const int64_t ts = std::get<0>(tuple);
     const Eigen::Vector3d acc = std::get<1>(tuple);
     const Eigen::Vector3d gyr = std::get<2>(tuple);
     fprintf(imu_csv, "%ld,", ts);
-    fprintf(imu_csv, "%f,%f,%f,", acc.x(), acc.y(), acc.z());
-    fprintf(imu_csv, "%f,%f,%f\n", gyr.x(), gyr.y(), gyr.z());
+    fprintf(imu_csv, "%f,%f,%f,", gyr.x(), gyr.y(), gyr.z());
+    fprintf(imu_csv, "%f,%f,%f\n", acc.x(), acc.y(), acc.z());
   }
 
   fclose(imu_csv);
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
   device.stop();
 
   // Save data
-  const std::string save_dir = "/home/chutsu/calib_camimu";
+  const std::string save_dir = "/home/chutsu/calib_camimu2";
   save_data(save_dir, image_data, imu_data);
 
   return 0;

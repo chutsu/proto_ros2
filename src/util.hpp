@@ -56,7 +56,8 @@ static int dir_create(const std::string &path) {
     return 0;
   }
 
-  if (mkdir(path.c_str(), 0777) != 0) {
+  const std::string cmd = "mkdir -p " + path;
+  if (system(cmd.c_str()) != 0) {
     return -1;
   }
 

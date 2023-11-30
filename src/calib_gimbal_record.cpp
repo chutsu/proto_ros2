@@ -78,10 +78,10 @@ void save_data(
     cv::imwrite(frame0_path, frame0);
     cv::imwrite(frame1_path, frame1);
 
-    detect_aprilgrid(detector, frame0, grid0);
+    detect_aprilgrid(detector, ts, frame0, grid0);
     aprilgrid_save(grid0, det0_path.c_str());
 
-    detect_aprilgrid(detector, frame1, grid1);
+    detect_aprilgrid(detector, ts, frame1, grid1);
     aprilgrid_save(grid1, det1_path.c_str());
 
     const cv::Mat viz0 = aprilgrid_draw(grid0, frame0);

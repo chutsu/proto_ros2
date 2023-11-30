@@ -46,8 +46,8 @@ void save_data(
     cv::imwrite(frame1_path, frame0);
     grid0->timestamp = ts;
     grid1->timestamp = ts;
-    detect_aprilgrid(detector, frame0, grid0);
-    detect_aprilgrid(detector, frame1, grid1);
+    detect_aprilgrid(detector, ts, frame0, grid0);
+    detect_aprilgrid(detector, ts, frame1, grid1);
     aprilgrid_save(grid0, det0_path.c_str());
     aprilgrid_save(grid1, det1_path.c_str());
 

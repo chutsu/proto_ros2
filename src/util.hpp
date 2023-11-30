@@ -72,11 +72,15 @@ static bool apriltag_cmp(const AprilTags::TagDetection &a,
 
 /* Detecto AprilGrid */
 static int detect_aprilgrid(const AprilTags::AprilGridDetector &detector,
+                            const int64_t timestamp,
                             const cv::Mat &image,
                             aprilgrid_t *grid,
                             const int min_tags_threshold = 4,
                             const double min_border_dist = 5.0,
                             const double max_subpix_disp = sqrt(1.5)) {
+  // Set aprilgrid timestamp
+  grid->timestamp = timestamp;
+
   // Use AprilTags by Michael Kaess
   std::vector<AprilTags::TagDetection> tags = detector.extractTags(image);
 

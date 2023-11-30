@@ -10,6 +10,13 @@
 #include "realsense.hpp"
 
 /**
+ * Convert Degrees to Radians.
+ */
+double deg2rad(const double d) {
+  return d * (M_PI / 180.0);
+}
+
+/**
  * Record
  */
 void record(const int64_t ts,
@@ -19,11 +26,11 @@ void record(const int64_t ts,
             std::vector<std::tuple<int64_t, cv::Mat, cv::Mat>> &images,
             std::vector<std::pair<int64_t, Eigen::Vector3d>> &joint_angles) {
   Eigen::Vector3d joints;
-  joints.x() = sbgc->camera_angles[0];
-  joints.y() = sbgc->camera_angles[1];
-  joints.z() = sbgc->encoder_angles[2];
+  joints[0] = deg2rad(sbgc->encoder_angles[2]); // Motor 1: Yaw
+  joints[1] = deg2rad(sbgc->camera_angles[0]);  // Monor 2: Roll
+  joints[2] = deg2rad(sbgc->camera_angles[1]);  // Motor 3: Pitch
 
-  printf("joints: [%.2f, %.2f, %.2f]\n", joints.x(), joints.y(), joints.z());
+  printf("joints: [%.2f, %.2f, %.2f]\n", joints[0], joints[1], joints[2]);
   cv::Mat viz;
   cv::hconcat(frame0, frame1, viz);
   cv::imshow("Viz", viz);
@@ -69,7 +76,7 @@ void save_data(
     const std::string det1_path = cam1_path + "/" + fname + ".csv";
 
     cv::imwrite(frame0_path, frame0);
-    cv::imwrite(frame1_path, frame0);
+    cv::imwrite(frame1_path, frame1);
 
     detect_aprilgrid(detector, frame0, grid0);
     aprilgrid_save(grid0, det0_path.c_str());
@@ -111,12 +118,13 @@ void save_data(
   fclose(joints_dat);
 
   // -- Poses
+  const int64_t first_ts = std::get<0>(images.front());
   const std::string poses_path = save_dir + "/poses.dat";
   FILE *poses_dat = fopen(poses_path.c_str(), "w");
   fprintf(poses_dat, "num_poses: 1\n");
   fprintf(poses_dat, "\n");
   fprintf(poses_dat, "#ts,x,y,z,qw,qx,qy,qz\n");
-  fprintf(poses_dat, "0,0.0,0.0,0.0,1.0,0.0,0.0,0.0\n");
+  fprintf(poses_dat, "%ld,0.0,0.0,0.0,1.0,0.0,0.0,0.0\n", first_ts);
   fclose(poses_dat);
 }
 

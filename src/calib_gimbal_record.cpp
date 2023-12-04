@@ -50,9 +50,13 @@ void save_data(
   // -- Setup save directory
   const std::string cam0_path = save_dir + "/cam0";
   const std::string cam1_path = save_dir + "/cam1";
+  const std::string grid0_cam0_path = save_dir + "/grid0/cam0";
+  const std::string grid0_cam1_path = save_dir + "/grid0/cam1";
   dir_create(save_dir);
   dir_create(cam0_path);
   dir_create(cam1_path);
+  dir_create(grid0_cam0_path);
+  dir_create(grid0_cam1_path);
 
   // -- Image pairs
   int num_rows = 6;
@@ -71,8 +75,8 @@ void save_data(
     const std::string fname = std::to_string(ts);
     const std::string frame0_path = cam0_path + "/" + fname + ".png";
     const std::string frame1_path = cam1_path + "/" + fname + ".png";
-    const std::string det0_path = cam0_path + "/" + fname + ".csv";
-    const std::string det1_path = cam1_path + "/" + fname + ".csv";
+    const std::string det0_path = grid0_cam0_path + "/" + fname + ".csv";
+    const std::string det1_path = grid0_cam1_path + "/" + fname + ".csv";
 
     cv::imwrite(frame0_path, frame0);
     cv::imwrite(frame1_path, frame1);

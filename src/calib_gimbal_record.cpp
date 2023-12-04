@@ -27,8 +27,8 @@ void record(const int64_t ts,
             std::vector<std::pair<int64_t, Eigen::Vector3d>> &joint_angles) {
   Eigen::Vector3d joints;
   joints[0] = deg2rad(sbgc->encoder_angles[2]); // Motor 1: Yaw
-  joints[1] = deg2rad(sbgc->camera_angles[0]);  // Monor 2: Roll
-  joints[2] = deg2rad(sbgc->camera_angles[1]);  // Motor 3: Pitch
+  joints[1] = deg2rad(sbgc->encoder_angles[0]); // Monor 2: Roll
+  joints[2] = deg2rad(sbgc->encoder_angles[1]); // Motor 3: Pitch
 
   printf("joints: [%.2f, %.2f, %.2f]\n", joints[0], joints[1], joints[2]);
   cv::Mat viz;

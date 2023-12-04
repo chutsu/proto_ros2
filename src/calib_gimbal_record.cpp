@@ -30,11 +30,10 @@ void record(const int64_t ts,
   joints[1] = deg2rad(sbgc->encoder_angles[0]); // Monor 2: Roll
   joints[2] = deg2rad(sbgc->encoder_angles[1]); // Motor 3: Pitch
 
-  printf("joints: [%.2f, %.2f, %.2f]\n", joints[0], joints[1], joints[2]);
-  cv::Mat viz;
-  cv::hconcat(frame0, frame1, viz);
-  cv::imshow("Viz", viz);
-  cv::waitKey(10);
+  printf("joints: [%.2f, %.2f, %.2f]\n",
+         sbgc->encoder_angles[0],
+         sbgc->encoder_angles[1],
+         sbgc->encoder_angles[2]);
 
   images.push_back({ts, frame0.clone(), frame1.clone()});
   joint_angles.push_back({ts, joints});

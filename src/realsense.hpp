@@ -31,10 +31,12 @@
 #define RS_WARN(M, ...)                                                        \
   fprintf(stdout, "\033[33m[WARN] " M "\033[0m\n", ##__VA_ARGS__)
 
+#ifndef UNUSED
 #define UNUSED(expr)                                                           \
   do {                                                                         \
     (void) (expr);                                                             \
   } while (0)
+#endif
 
 #define ROS_PARAM(NH, X, Y)                                                    \
   if (NH.getParam(X, Y) == false) {                                            \

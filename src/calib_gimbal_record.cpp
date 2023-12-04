@@ -48,8 +48,8 @@ void save_data(
     const std::vector<std::pair<int64_t, Eigen::Vector3d>> &joint_angles) {
   // Save image pairs
   // -- Setup save directory
-  const std::string cam0_path = save_dir + "/cam0";
-  const std::string cam1_path = save_dir + "/cam1";
+  const std::string cam0_path = save_dir + "/cam0/data";
+  const std::string cam1_path = save_dir + "/cam1/data";
   const std::string grid0_cam0_path = save_dir + "/grid0/cam0";
   const std::string grid0_cam1_path = save_dir + "/grid0/cam1";
   dir_create(save_dir);

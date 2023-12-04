@@ -13,6 +13,19 @@
 #define APRILGRID_IMPLEMENTATION
 #include <aprilgrid.h>
 
+#ifndef FATAL
+#define FATAL(...)                                                             \
+  printf(__VA_ARGS__);                                                         \
+  exit(-1);
+#endif
+
+#ifndef UNUSED
+#define UNUSED(expr)                                                           \
+  do {                                                                         \
+    (void) (expr);                                                             \
+  } while (0);
+#endif
+
 /**
  * Timestamp now
  */
@@ -62,6 +75,270 @@ static int dir_create(const std::string &path) {
   }
 
   return 0;
+}
+
+/**
+ * Print vector `v` with a `name`.
+ */
+void print_vector(const std::string &name, const Eigen::VectorXd &v) {
+  printf("%s: ", name.c_str());
+  for (long i = 0; i < v.size(); i++) {
+    printf("%f", v(i));
+    if ((i + 1) != v.size()) {
+      printf(", ");
+    }
+  }
+  printf("\n");
+}
+
+/**
+ * Print matrix `m` with a `name`.
+ */
+void print_matrix(const std::string &name,
+                  const Eigen::MatrixXd &m,
+                  const std::string &indent) {
+  printf("%s:\n", name.c_str());
+  for (long i = 0; i < m.rows(); i++) {
+    printf("%s", indent.c_str());
+    for (long j = 0; j < m.cols(); j++) {
+      printf("%f", m(i, j));
+      if ((j + 1) != m.cols()) {
+        printf(", ");
+      }
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
+
+/**
+   * String copy from `src` to `dst`.
+   */
+size_t string_copy(char *dst, const char *src) {
+  dst[0] = '\0';
+  memcpy(dst, src, strlen(src));
+  dst[strlen(src)] = '\0'; // Null terminate
+  return strlen(dst);
+}
+
+/**
+   * Strip whitespace from string `s`.
+   */
+char *string_strip(char *s) {
+  char *end;
+
+  // Trim leading space
+  while (*s == ' ') {
+    s++;
+  }
+
+  if (*s == 0) { // All spaces?
+    return s;
+  }
+
+  // Trim trailing space
+  end = s + strlen(s) - 1;
+  while (end > s && (*end == ' ' || *end == '\n')) {
+    end--;
+  }
+
+  // Write new null terminator character
+  end[1] = '\0';
+
+  return s;
+}
+
+/**
+   * Strip specific character `c` from string `s`.
+   */
+char *string_strip_char(char *s, const char c) {
+  char *end;
+
+  // Trim leading space
+  while (*s == c) {
+    s++;
+  }
+
+  if (*s == 0) { // All spaces?
+    return s;
+  }
+
+  // Trim trailing space
+  end = s + strlen(s) - 1;
+  while (end > s && *end == c) {
+    end--;
+  }
+
+  // Write new null terminator character
+  end[1] = '\0';
+
+  return s;
+}
+
+/**
+   * Split string `s` by delimiter `d`
+   */
+char **string_split(char *a_str, const char a_delim, size_t *n) {
+  char **result = 0;
+  char *tmp = a_str;
+  char *last_comma = 0;
+  char delim[2];
+  delim[0] = a_delim;
+  delim[1] = 0;
+
+  /* Count how many elements will be extracted. */
+  while (*tmp) {
+    if (a_delim == *tmp) {
+      (*n)++;
+      last_comma = tmp;
+    }
+    tmp++;
+  }
+
+  /* Add space for trailing token. */
+  *n += last_comma < (a_str + strlen(a_str) - 1);
+
+  /* Add space for terminating null string so caller
+     knows where the list of returned strings ends. */
+  (*n)++;
+  result = (char **) malloc(sizeof(char *) * *n);
+
+  if (result) {
+    size_t idx = 0;
+    char *token = strtok(a_str, delim);
+
+    while (token) {
+      assert(idx < *n);
+      *(result + idx++) = strdup(token);
+      token = strtok(0, delim);
+    }
+    assert(idx == *n - 1);
+    *(result + idx) = 0;
+  }
+
+  // Return results
+  (*n)--;
+
+  return result;
+}
+
+/**
+   * Skip line
+   */
+static void parse_skip_line(FILE *fp) {
+  assert(fp != NULL);
+  const size_t buf_len = 9046;
+  char buf[9046] = {0};
+  const char *read = fgets(buf, buf_len, fp);
+  UNUSED(read);
+}
+
+/**
+   * Parse integer vector from string line.
+   * @returns `0` for success or `-1` for failure
+   */
+static int parse_vector_line(char *line, const char *type, void *data, int n) {
+  assert(line != NULL);
+  assert(data != NULL);
+  char entry[1024] = {0};
+  int index = 0;
+
+  for (size_t i = 0; i < strlen(line); i++) {
+    char c = line[i];
+    if (c == '[' || c == ' ') {
+      continue;
+    }
+
+    if (c == ',' || c == ']' || c == '\n') {
+      if (strcmp(type, "int") == 0) {
+        ((int *) data)[index] = strtod(entry, NULL);
+      } else if (strcmp(type, "double") == 0) {
+        ((double *) data)[index] = strtod(entry, NULL);
+      } else {
+        FATAL("Invalid type [%s]\n", type);
+      }
+      index++;
+      memset(entry, '\0', sizeof(char) * 100);
+    } else {
+      entry[strlen(entry)] = c;
+    }
+  }
+
+  if (index != n) {
+    return -1;
+  }
+
+  return 0;
+}
+
+/**
+   * Parse key-value pair from string line
+   **/
+void parse_key_value(FILE *fp,
+                     const char *key,
+                     const char *value_type,
+                     void *value) {
+  assert(fp != NULL);
+  assert(key != NULL);
+  assert(value_type != NULL);
+  assert(value != NULL);
+
+  // Parse line
+  const size_t buf_len = 1024;
+  char buf[1024] = {0};
+  if (fgets(buf, buf_len, fp) == NULL) {
+    FATAL("Failed to parse [%s]\n", key);
+  }
+
+  // Split key-value
+  char delim[2] = ":";
+  char *key_str = strtok(buf, delim);
+  char *value_str = strtok(NULL, delim);
+  if (key_str == NULL || value_str == NULL) {
+    FATAL("Failed to parse [%s]\n", key);
+  }
+  key_str = string_strip(key_str);
+  value_str = string_strip(value_str);
+
+  // Check key matches
+  if (strcmp(key_str, key) != 0) {
+    FATAL("Failed to parse [%s]\n", key);
+  }
+
+  // Typecase value
+  if (value_type == NULL) {
+    FATAL("Value type not set!\n");
+  }
+
+  // Parse value
+  if (strcmp(value_type, "int") == 0) {
+    *(int *) value = atoi(value_str);
+  } else if (strcmp(value_type, "double") == 0) {
+    *(double *) value = atof(value_str);
+  } else if (strcmp(value_type, "int64_t") == 0) {
+    *(int64_t *) value = atol(value_str);
+  } else if (strcmp(value_type, "uint64_t") == 0) {
+    *(uint64_t *) value = atol(value_str);
+  } else if (strcmp(value_type, "string") == 0) {
+    value_str = string_strip_char(value_str, '"');
+    string_copy((char *) value, value_str);
+  } else if (strcmp(value_type, "vec2i") == 0) {
+    parse_vector_line(value_str, "int", value, 2);
+  } else if (strcmp(value_type, "vec3i") == 0) {
+    parse_vector_line(value_str, "int", value, 3);
+  } else if (strcmp(value_type, "vec2d") == 0) {
+    parse_vector_line(value_str, "double", value, 2);
+  } else if (strcmp(value_type, "vec3d") == 0) {
+    parse_vector_line(value_str, "double", value, 3);
+  } else if (strcmp(value_type, "vec4d") == 0) {
+    parse_vector_line(value_str, "double", value, 4);
+  } else if (strcmp(value_type, "vec7d") == 0) {
+    parse_vector_line(value_str, "double", value, 7);
+  } else if (strcmp(value_type, "pose") == 0) {
+    parse_vector_line(value_str, "double", value, 7);
+  } else {
+    FATAL("Invalid value type [%s]\n", value_type);
+  }
 }
 
 /* Compare AprilTag */

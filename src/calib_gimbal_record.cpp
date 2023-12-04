@@ -169,40 +169,42 @@ int main(int argc, char *argv[]) {
     printf("Failed to connect to SBGC!");
     exit(-1);
   }
+  sleep(3);
 
   // Zero gimbal
-  // sbgc_set_angle(&sbgc, 0, 0, 0);
-  // sleep(3);
+  sbgc_set_angle(&sbgc, 0, 0, 0);
+  sleep(3);
 
-  // const auto range_roll = linspace(-30, 30, 8);
-  // const auto range_pitch = linspace(-30, 30, 10);
-  // const auto range_yaw = linspace(-30, 30, 9);
-  // for (auto roll : range_roll) {
-  //   for (auto pitch : range_pitch) {
-  //     for (auto yaw : range_yaw) {
-  //       sbgc_set_angle(&sbgc, roll, pitch, yaw);
+  const auto range_roll = linspace(-30, 30, 8);
+  const auto range_pitch = linspace(-30, 30, 8);
+  const auto range_yaw = linspace(-30, 30, 8);
+  for (auto roll : range_roll) {
+    for (auto pitch : range_pitch) {
+      for (auto yaw : range_yaw) {
+        sbgc_set_angle(&sbgc, roll, pitch, yaw);
 
-  //       sleep(3);
-  //       printf("Capture!");
+        sleep(3);
+        printf("Capture! ");
+        fflush(stdout);
 
-  //       sbgc_update(&sbgc);
-  //       std::lock_guard<std::mutex> lock(mtx);
-  //       const auto ts = timestamp_now();
-  //       record(ts, &sbgc, frame0, frame1, images, joint_angles);
-  //     }
-  //   }
-  // }
-
-  const int num_captures = 30;
-  for (int i = 0; i < num_captures; i++) {
-    sleep(3);
-    printf("Capture!");
-
-    sbgc_update(&sbgc);
-    std::lock_guard<std::mutex> lock(mtx);
-    const auto ts = timestamp_now();
-    record(ts, &sbgc, frame0, frame1, images, joint_angles);
+        sbgc_update(&sbgc);
+        std::lock_guard<std::mutex> lock(mtx);
+        const auto ts = timestamp_now();
+        record(ts, &sbgc, frame0, frame1, images, joint_angles);
+      }
+    }
   }
+
+  // const int num_captures = 30;
+  // for (int i = 0; i < num_captures; i++) {
+  //   sleep(3);
+  //   printf("Capture! ");
+
+  //   sbgc_update(&sbgc);
+  //   std::lock_guard<std::mutex> lock(mtx);
+  //   const auto ts = timestamp_now();
+  //   record(ts, &sbgc, frame0, frame1, images, joint_angles);
+  // }
 
   // Save data
   const std::string save_dir = "/home/chutsu/calib_gimbal";

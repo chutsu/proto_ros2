@@ -29,11 +29,10 @@ FIND_PACKAGE(LAPACK REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${Eigen3_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${realsense2_INCLUDE_DIR})
-INCLUDE_DIRECTORIES(/opt/yac/include)
 INCLUDE_DIRECTORIES(/opt/proto/include)
-LINK_DIRECTORIES(/opt/yac/lib)
 LINK_DIRECTORIES(/opt/proto/lib)
 LINK_DIRECTORIES(/usr/local/lib)
+
 
 # EXPORT DEPENDENCIES
 AMENT_EXPORT_DEPENDENCIES(
@@ -80,7 +79,7 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS calib_camera_record DESTINATION lib/${PROJECT_NAME})
 
-# -- Calib Camera-IMU Record
+# -- Calib Camera-IMU Inspect
 ADD_EXECUTABLE(calib_camimu_record src/calib_camimu_record.cpp)
 TARGET_LINK_LIBRARIES(
   calib_camimu_record
@@ -90,7 +89,7 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS calib_camimu_record DESTINATION lib/${PROJECT_NAME})
 
-# -- Calib Gimbal
+# -- Calib Gimbal Record
 ADD_EXECUTABLE(calib_gimbal_record src/calib_gimbal_record.cpp)
 TARGET_LINK_LIBRARIES(
   calib_gimbal_record
@@ -99,6 +98,16 @@ TARGET_LINK_LIBRARIES(
   ${OpenCV_LIBS}
 )
 INSTALL(TARGETS calib_gimbal_record DESTINATION lib/${PROJECT_NAME})
+
+# -- Calib Gimbal Inspect
+ADD_EXECUTABLE(calib_gimbal_inspect src/calib_gimbal_inspect.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_gimbal_inspect
+  realsense2
+  apriltags
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_gimbal_inspect DESTINATION lib/${PROJECT_NAME})
 
 # INSTALL LAUNCH FILES
 INSTALL(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)

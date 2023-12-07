@@ -464,7 +464,8 @@ static int detect_aprilgrid(const AprilTags::AprilGridDetector &detector,
 cv::Mat aprilgrid_draw(const aprilgrid_t *grid,
                        const cv::Mat &image,
                        const int marker_size = 2,
-                       const cv::Scalar &color = cv::Scalar{0, 0, 255}) {
+                       const cv::Scalar &color = cv::Scalar{0, 0, 255},
+                       const bool label_corner = false) {
   const cv::Scalar text_color(0, 255, 0);
   const int font = cv::FONT_HERSHEY_PLAIN;
   const real_t font_scale = 1.0;
@@ -489,9 +490,17 @@ cv::Mat aprilgrid_draw(const aprilgrid_t *grid,
     cv::circle(image_rgb, p, marker_size, color, -1);
 
     // Label corner
-    cv::Point2f cxy(kp[0], kp[1]);
-    std::string text = std::to_string(tag_id);
-    cv::putText(image_rgb, text, cxy, font, font_scale, text_color, thickness);
+    if (label_corner) {
+      cv::Point2f cxy(kp[0], kp[1]);
+      std::string text = std::to_string(tag_id);
+      cv::putText(image_rgb,
+                  text,
+                  cxy,
+                  font,
+                  font_scale,
+                  text_color,
+                  thickness);
+    }
   }
 
   free(tag_ids);

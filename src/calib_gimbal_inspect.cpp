@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <mutex>
+#include <thread>
 
 #define SBGC_IMPLEMENTATION
 #define SBGC_DEV "/dev/ttyUSB0"
@@ -381,6 +382,7 @@ struct CalibConfig {
   Eigen::Matrix4d T_L2E;
   Eigen::Matrix4d T_EC0;
   Eigen::Matrix4d T_EC1;
+  Eigen::Matrix4d T_WF;
 
   CalibConfig(const std::string &conf_path, const bool format_v2 = true) {
     // Open config file
@@ -420,6 +422,7 @@ struct CalibConfig {
     parse_key_value(conf, "end_ext", "pose", end_ext.data());
     parse_key_value(conf, "cam0_ext", "pose", cam0_ext.data());
     parse_key_value(conf, "cam1_ext", "pose", cam1_ext.data());
+    parse_key_value(conf, "fiducial_pose", "pose", fiducial_pose.data());
 
     T_BM0 = transform(gimbal_ext.data());
     T_L0M1 = transform(link0_ext.data());
@@ -427,6 +430,15 @@ struct CalibConfig {
     T_L2E = transform(end_ext.data());
     T_EC0 = transform(cam0_ext.data());
     T_EC1 = transform(cam1_ext.data());
+    T_WF = transform(fiducial_pose.data());
+
+    print_matrix("T_BM0", T_BM0, "  ");
+    print_matrix("T_L0M1", T_L0M1, "  ");
+    print_matrix("T_L1M2", T_L1M2, "  ");
+    print_matrix("T_L2E", T_L2E, "  ");
+    print_matrix("T_EC0", T_EC0, "  ");
+    print_matrix("T_EC1", T_EC1, "  ");
+    print_matrix("T_WF", T_WF, "  ");
 
     // Clean up
     fclose(conf);
@@ -435,136 +447,187 @@ struct CalibConfig {
 
 int main(int argc, char *argv[]) {
   // Setup
-  std::mutex mtx;
   CalibConfig calib_conf{"/home/chutsu/calib_gimbal2/results.yaml"};
-  sbgc_t sbgc;
   rs_d435i_t device;
+  const double scale_factor = 0.5;
 
-  int num_rows = 6;
-  int num_cols = 6;
-  double tsize = 0.038;
-  double tspacing = 0.3;
-  AprilTags::AprilGridDetector detector;
-
-  // Switch on SBGC
-  sbgc_connect(&sbgc, SBGC_DEV);
-  if (sbgc_on(&sbgc) != 0) {
-    printf("Failed to connect to SBGC!");
-    exit(-1);
-  }
-  sleep(1);
-
-  // -- Register image callback
+  std::mutex mtx;
+  bool run = true;
+  int64_t ts = 0;
+  cv::Mat frame0;
+  double target_angle0 = 0.0;
+  double target_angle1 = 0.0;
+  double target_angle2 = 0.0;
   double joint0 = 0.0;
   double joint1 = 0.0;
   double joint2 = 0.0;
 
-  bool fiducial_estimated = false;
-  Eigen::Matrix4d T_WF;
+  // Thread functions
+  // -- RealSense thread
+  auto realsense_thread = [&]() {
+    device.image_callback = [&](const rs2::video_frame &ir0,
+                                const rs2::video_frame &ir1) {
+      const int width = ir0.get_width();
+      const int height = ir0.get_height();
+      const std::string encoding = "mono8";
+      ts = vframe2ts(ir0, true);
+      std::lock_guard<std::mutex> lock(mtx);
+      frame0 = frame2cvmat(ir0, width, height, CV_8UC1);
 
-  device.image_callback = [&](const rs2::video_frame &ir0,
-                              const rs2::video_frame &ir1) {
-    const timestamp_t ts = 0;
-    const int width = ir0.get_width();
-    const int height = ir0.get_height();
-    const std::string encoding = "mono8";
-    auto frame0 = frame2cvmat(ir0, width, height, CV_8UC1);
-    auto frame1 = frame2cvmat(ir1, width, height, CV_8UC1);
+      const int new_width = width * scale_factor;
+      const int new_height = height * scale_factor;
+      cv::resize(frame0, frame0, cv::Size(new_width, new_height));
+    };
 
+    device.start();
+    while (run) {}
+  };
+
+  // -- SBGC Thread
+  auto sbgc_thread = [&]() {
+    sbgc_t sbgc;
+
+    // Connect to gimbal
+    if (sbgc_connect(&sbgc, SBGC_DEV) != 0) {
+      printf("Failed to connect to SBGC!");
+      run = false;
+    }
+
+    // Switch the gimbal on
+    if (sbgc_on(&sbgc) != 0) {
+      printf("Failed to turn on SBGC!");
+      run = false;
+    }
+
+    // Loop
+    while (run) {
+      sbgc_set_angle(&sbgc, target_angle0, target_angle1, target_angle2);
+      sbgc_update(&sbgc);
+
+      joint0 = deg2rad(sbgc.encoder_angles[2]);
+      joint1 = deg2rad(sbgc.encoder_angles[0]);
+      joint2 = deg2rad(sbgc.encoder_angles[1]);
+
+      usleep(10 * 1000);
+    }
+
+    sbgc_off(&sbgc);
+  };
+
+  // Inspect thread
+  auto inspect_thread = [&]() {
+    sleep(3);
+
+    bool fiducial_estimated = false;
+    Eigen::Matrix4d T_WF;
+
+    int num_rows = 6;
+    int num_cols = 6;
+    double tsize = 0.038;
+    double tspacing = 0.3;
+    AprilTags::AprilGridDetector detector;
     aprilgrid_t *grid0 = aprilgrid_malloc(num_rows, num_cols, tsize, tspacing);
-    detect_aprilgrid(detector, ts, frame0, grid0);
-    const auto viz0 = aprilgrid_draw(grid0, frame0);
-    aprilgrid_free(grid0);
 
-    sbgc_update(&sbgc);
-    const double joint0 = sbgc.encoder_angles[2];
-    const double joint1 = sbgc.encoder_angles[0];
-    const double joint2 = sbgc.encoder_angles[1];
-    const Eigen::Matrix4d T_M0L0 = gimbal_joint_transform(joint0);
-    const Eigen::Matrix4d T_M1L1 = gimbal_joint_transform(joint1);
-    const Eigen::Matrix4d T_M2L2 = gimbal_joint_transform(joint2);
-
-    Eigen::Matrix4d T_WC0 = Eigen::Matrix4d::Identity();
-    T_WC0 *= calib_conf.T_BM0;
-    T_WC0 *= T_M0L0;
-    T_WC0 *= calib_conf.T_L0M1;
-    T_WC0 *= T_M1L1;
-    T_WC0 *= calib_conf.T_L1M2;
-    T_WC0 *= T_M2L2;
-    T_WC0 *= calib_conf.T_L2E;
-    T_WC0 *= calib_conf.T_EC0;
-
-    // const timestamp_t ts = grid0->timestamp;
-    const int num_corners = grid0->corners_detected;
-    int *tag_ids = new int[num_corners];
-    int *corner_indices = new int[num_corners];
-    real_t *kps = new real_t[num_corners * 2];
-    real_t *pts = new real_t[num_corners * 3];
-    aprilgrid_measurements(grid0, tag_ids, corner_indices, kps, pts);
-
-    if (fiducial_estimated == false) {
-      std::vector<Eigen::Vector2d> keypoints;
-      std::vector<Eigen::Vector3d> points;
-      Eigen::Matrix4d T_CF;
-      for (int i = 0; i < num_corners; i++) {
-        keypoints.push_back(Eigen::Vector2d{kps[2 * i + 0], kps[2 * i + 1]});
-        points.push_back(
-            Eigen::Vector3d{pts[3 * i + 0], pts[3 * i + 1], pts[3 * i + 2]});
+    while (run) {
+      if (frame0.empty()) {
+        continue;
       }
 
-      solvepnp(calib_conf.cam_res,
-               calib_conf.cam_params[0],
-               keypoints,
-               points,
-               T_CF);
-      T_WF = T_WC0 * T_CF;
-      fiducial_estimated = true;
+      // std::lock_guard<std::mutex> lock(mtx);
+      detect_aprilgrid(detector, ts, frame0.clone(), grid0);
+      auto viz0 = aprilgrid_draw(grid0, frame0);
 
-    } else {
+      const Eigen::Matrix4d T_BM0 = calib_conf.T_BM0;
+      const Eigen::Matrix4d T_M0L0 = gimbal_joint_transform(joint0);
+      const Eigen::Matrix4d T_L0M1 = calib_conf.T_L0M1;
+      const Eigen::Matrix4d T_M1L1 = gimbal_joint_transform(joint1);
+      const Eigen::Matrix4d T_L1M2 = calib_conf.T_L1M2;
+      const Eigen::Matrix4d T_M2L2 = gimbal_joint_transform(joint2);
+      const Eigen::Matrix4d T_L2E = calib_conf.T_L2E;
+      const Eigen::Matrix4d T_EC0 = calib_conf.T_EC0;
+      const Eigen::Matrix4d T_WF = calib_conf.T_WF;
 
-      for (int i = 0; i < num_corners; i++) {
+      // clang-format off
+      const Eigen::Matrix4d T_WC0 = T_BM0 * T_M0L0 * T_L0M1 * T_M1L1 * T_L1M2 * T_M2L2 * T_L2E * T_EC0;
+      const Eigen::Matrix4d T_C0F = T_WC0.inverse() * T_WF;
+      // clang-format on
+
+      int tag_ids[6 * 6 * 4] = {0};
+      int corner_indices[6 * 6 * 4] = {0};
+      real_t kps[6 * 6 * 4 * 2] = {0};
+      real_t pts[6 * 6 * 4 * 3] = {0};
+      aprilgrid_measurements(grid0, tag_ids, corner_indices, kps, pts);
+
+      auto cam_params = calib_conf.cam_params[0];
+      cam_params[0] = cam_params[0] * scale_factor;
+      cam_params[1] = cam_params[1] * scale_factor;
+      cam_params[2] = cam_params[2] * scale_factor;
+      cam_params[3] = cam_params[3] * scale_factor;
+
+      // if (fiducial_estimated == false) {
+      //   std::vector<Eigen::Vector2d> keypoints;
+      //   std::vector<Eigen::Vector3d> points;
+      //   Eigen::Matrix4d T_CF;
+      //   for (int i = 0; i < grid0->corners_detected; i++) {
+      //     keypoints.emplace_back(kps[2 * i + 0] * scale_factor,
+      //                            kps[2 * i + 1] * scale_factor);
+      //     points.emplace_back(pts[3 * i + 0], pts[3 * i + 1], pts[3 * i + 2]);
+      //   }
+
+      //   printf("num keypoints: %ld\n", keypoints.size());
+      //   printf("num points: %ld\n", points.size());
+
+      //   if (keypoints.size() < 10) {
+      //     return;
+      //   }
+
+      //   solvepnp(calib_conf.cam_res, cam_params, keypoints, points, T_CF);
+      //   T_WF = T_WC0 * T_CF;
+
+      //   std::cout << "T_WF:" << std::endl;
+      //   std::cout << T_WF << std::endl;
+
+      //   fiducial_estimated = true;
+
+      // } else {
+
+      for (int i = 0; i < grid0->corners_detected; i++) {
         const Eigen::Vector2d kp{kps[i * 2 + 0], kps[i * 2 + 1]};
         const Eigen::Vector3d p_FFi{pts[i * 3 + 0],
                                     pts[i * 3 + 1],
                                     pts[i * 3 + 2]};
         const Eigen::Vector4d hp_FFi = p_FFi.homogeneous();
-        const Eigen::Vector3d p_C = (T_WC0.inverse() * T_WF * hp_FFi).head(3);
+        const Eigen::Vector3d p_C0 = (T_C0F * hp_FFi).head(3);
         Eigen::Vector2d z;
-        pinhole_radtan4_project(calib_conf.cam_res,
-                                calib_conf.cam_params[0],
-                                p_C,
-                                z);
+        pinhole_radtan4_project(calib_conf.cam_res, cam_params, p_C0, z);
 
         const int marker_size = 2;
-        const cv::Scalar color{0, 0, 255};
+        const cv::Scalar color{0, 255, 0};
         const cv::Point2f p(z.x(), z.y());
         cv::circle(viz0, p, marker_size, color, -1);
       }
+      // }
+
+      cv::imshow("Viz", viz0);
+      if (cv::waitKey(1) == 'q') {
+        run = false;
+      }
+
+      // Clear aprilgrid detection
+      aprilgrid_clear(grid0);
     }
 
     // Clean up
-    delete tag_ids;
-    delete corner_indices;
-    delete kps;
-    delete pts;
-
-    // cv::Mat viz;
-    // cv::hconcat(viz0, viz1, viz);
-    cv::imshow("Viz", viz0);
-    cv::waitKey(1);
+    aprilgrid_free(grid0);
   };
 
-  // Start realsense and SBGC
-  device.start();
-
-  // Zero gimbal
-  sbgc_set_angle(&sbgc, 0, 0, 0);
-  sleep(3);
-
   // Loop
-
-  // Clean up
-  sbgc_off(&sbgc);
+  std::thread thread0(sbgc_thread);
+  std::thread thread1(realsense_thread);
+  std::thread thread2(inspect_thread);
+  thread0.join();
+  thread1.join();
+  thread2.join();
 
   return 0;
 }

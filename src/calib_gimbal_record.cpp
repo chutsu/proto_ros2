@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <mutex>
+#include <thread>
 
 #define SBGC_IMPLEMENTATION
 #define SBGC_DEV "/dev/ttyUSB0"
@@ -17,39 +18,25 @@ double deg2rad(const double d) {
 }
 
 /**
- * Record
- */
-void record(const int64_t ts,
-            const sbgc_t *sbgc,
-            const cv::Mat &frame0,
-            const cv::Mat &frame1,
-            std::vector<std::tuple<int64_t, cv::Mat, cv::Mat>> &images,
-            std::vector<std::pair<int64_t, Eigen::Vector3d>> &joint_angles) {
-  Eigen::Vector3d joints;
-  joints[0] = deg2rad(sbgc->encoder_angles[2]); // Motor 1: Yaw
-  joints[1] = deg2rad(sbgc->encoder_angles[0]); // Monor 2: Roll
-  joints[2] = deg2rad(sbgc->encoder_angles[1]); // Motor 3: Pitch
-
-  printf("joints: [%.2f, %.2f, %.2f]\n",
-         sbgc->encoder_angles[0],
-         sbgc->encoder_angles[1],
-         sbgc->encoder_angles[2]);
-
-  images.push_back({ts, frame0.clone(), frame1.clone()});
-  joint_angles.push_back({ts, joints});
-}
-
-/**
  * Save data
  */
 void save_data(
     const std::string save_dir,
     const std::vector<std::tuple<int64_t, cv::Mat, cv::Mat>> &images,
-    const std::vector<std::pair<int64_t, Eigen::Vector3d>> &joint_angles) {
+    const std::vector<std::pair<int64_t, Eigen::Vector3d>> &joint_angles,
+    const bool debug = false) {
+  if (images.size() != joint_angles.size()) {
+    printf("Error: images.size() != joint_angles.size()\n");
+    return;
+  } else if (images.size() == 0) {
+    printf("Error: images.size() == 0\n");
+    return;
+  }
+
   // Save image pairs
   // -- Setup save directory
-  const std::string cam0_path = save_dir + "/cam0/data";
-  const std::string cam1_path = save_dir + "/cam1/data";
+  const std::string cam0_path = save_dir + "/cam0";
+  const std::string cam1_path = save_dir + "/cam1";
   const std::string grid0_cam0_path = save_dir + "/grid0/cam0";
   const std::string grid0_cam1_path = save_dir + "/grid0/cam1";
   dir_create(save_dir);
@@ -82,17 +69,18 @@ void save_data(
     cv::imwrite(frame1_path, frame1);
 
     detect_aprilgrid(detector, ts, frame0, grid0);
-    aprilgrid_save(grid0, det0_path.c_str());
-
     detect_aprilgrid(detector, ts, frame1, grid1);
+    aprilgrid_save(grid0, det0_path.c_str());
     aprilgrid_save(grid1, det1_path.c_str());
 
-    const cv::Mat viz0 = aprilgrid_draw(grid0, frame0);
-    const cv::Mat viz1 = aprilgrid_draw(grid1, frame1);
-    cv::Mat viz;
-    cv::hconcat(viz0, viz1, viz);
-    cv::imshow("Viz", viz);
-    cv::waitKey(1);
+    if (debug) {
+      const cv::Mat viz0 = aprilgrid_draw(grid0, frame0);
+      const cv::Mat viz1 = aprilgrid_draw(grid1, frame1);
+      cv::Mat viz;
+      cv::hconcat(viz0, viz1, viz);
+      cv::imshow("Detection", viz);
+      cv::waitKey(1);
+    }
 
     aprilgrid_clear(grid0);
     aprilgrid_clear(grid1);
@@ -133,87 +121,126 @@ void save_data(
 
 int main(int argc, char *argv[]) {
   // Setup
-  rs_d435i_t device;
   sbgc_t sbgc;
-
-  // int num_rows = 6;
-  // int num_cols = 6;
-  // double tsize = 0.038;
-  // double tspacing = 0.3;
-  // AprilTags::AprilGridDetector detector;
-  // aprilgrid_t *grid0 = aprilgrid_malloc(num_rows, num_cols, tsize, tspacing);
-  // aprilgrid_t *grid1 = aprilgrid_malloc(num_rows, num_cols, tsize, tspacing);
+  rs_d435i_t device;
 
   std::mutex mtx;
+  bool run = true;
   cv::Mat frame0;
   cv::Mat frame1;
+  double target_angle0 = 0.0;
+  double target_angle1 = 0.0;
+  double target_angle2 = 0.0;
   std::vector<std::tuple<int64_t, cv::Mat, cv::Mat>> images;
   std::vector<std::pair<int64_t, Eigen::Vector3d>> joint_angles;
 
-  // -- Register image callback
-  device.image_callback = [&](const rs2::video_frame &ir0,
-                              const rs2::video_frame &ir1) {
-    // std::lock_guard<std::mutex> lock(mtx);
-    const int width = ir0.get_width();
-    const int height = ir0.get_height();
-    const std::string encoding = "mono8";
-    frame0 = frame2cvmat(ir0, width, height, CV_8UC1);
-    frame1 = frame2cvmat(ir1, width, height, CV_8UC1);
+  // Thread functions
+  // -- RealSense thread
+  auto realsense_thread = [&]() {
+    device.image_callback = [&](const rs2::video_frame &ir0,
+                                const rs2::video_frame &ir1) {
+      // std::lock_guard<std::mutex> lock(mtx);
+      const int64_t ts = vframe2ts(ir0, true);
+      const int width = ir0.get_width();
+      const int height = ir0.get_height();
+      const std::string encoding = "mono8";
+      frame0 = frame2cvmat(ir0, width, height, CV_8UC1);
+      frame1 = frame2cvmat(ir1, width, height, CV_8UC1);
+
+      cv::Mat viz;
+      cv::hconcat(frame0, frame1, viz);
+      cv::imshow("Viz", viz);
+      if (cv::waitKey(1) == 'q') {
+        run = false;
+      }
+    };
+    device.start();
+    while (run) {}
   };
 
-  // Start realsense and SBGC
-  // device.loop();
-  device.start();
-  sbgc_connect(&sbgc, SBGC_DEV);
-  if (sbgc_on(&sbgc) != 0) {
-    printf("Failed to connect to SBGC!");
-    exit(-1);
-  }
-  sleep(3);
+  // -- SBGC thread
+  auto sbgc_thread = [&]() {
+    // Connect to gimbal
+    if (sbgc_connect(&sbgc, SBGC_DEV) != 0) {
+      printf("Failed to connect to SBGC!");
+      run = false;
+    }
+
+    // Switch the gimbal on
+    if (sbgc_on(&sbgc) != 0) {
+      printf("Failed to turn on SBGC!");
+      run = false;
+    }
+
+    // Loop
+    while (run) {
+      // std::lock_guard<std::mutex> lock(mtx);
+      sbgc_set_angle(&sbgc, target_angle0, target_angle1, target_angle2);
+      sbgc_update(&sbgc);
+      usleep(10 * 1000);
+    }
+
+    sbgc_off(&sbgc);
+  };
+
+  // -- Calibration data capture thread
+  auto capture_thread = [&]() {
+    sleep(5);
+
+    const int num_captures = 300;
+    for (int i = 0; i < num_captures; i++) {
+      // sleep(3);
+      usleep(100 * 1000);
+      printf("Capture! ");
+
+      std::lock_guard<std::mutex> lock(mtx);
+      const auto ts = timestamp_now();
+      const Eigen::Vector3d joints{deg2rad(sbgc.encoder_angles[2]),
+                                   deg2rad(sbgc.encoder_angles[0]),
+                                   deg2rad(sbgc.encoder_angles[1])};
+      images.push_back({ts, frame0.clone(), frame1.clone()});
+      joint_angles.push_back({ts, joints});
+    }
+
+    // Stop other threads
+    run = false;
+
+    // Save data
+    const std::string save_dir = "/home/chutsu/calib_gimbal2";
+    save_data(save_dir, images, joint_angles);
+  };
 
   // Zero gimbal
-  sbgc_set_angle(&sbgc, 0, 0, 0);
-  sleep(3);
+  // sbgc_set_angle(&sbgc, 0, 0, 0);
+  // sleep(3);
 
-  const auto range_roll = linspace(-30, 30, 8);
-  const auto range_pitch = linspace(-30, 30, 8);
-  const auto range_yaw = linspace(-30, 30, 8);
-  for (auto roll : range_roll) {
-    for (auto pitch : range_pitch) {
-      for (auto yaw : range_yaw) {
-        sbgc_set_angle(&sbgc, roll, pitch, yaw);
+  // const auto range_roll = linspace(-30, 30, 8);
+  // const auto range_pitch = linspace(-30, 30, 8);
+  // const auto range_yaw = linspace(-30, 30, 8);
+  // for (auto roll : range_roll) {
+  //   for (auto pitch : range_pitch) {
+  //     for (auto yaw : range_yaw) {
+  //       sbgc_set_angle(&sbgc, roll, pitch, yaw);
 
-        sleep(3);
-        printf("Capture! ");
-        fflush(stdout);
+  //       sleep(3);
+  //       printf("Capture! ");
+  //       fflush(stdout);
 
-        sbgc_update(&sbgc);
-        std::lock_guard<std::mutex> lock(mtx);
-        const auto ts = timestamp_now();
-        record(ts, &sbgc, frame0, frame1, images, joint_angles);
-      }
-    }
-  }
-
-  // const int num_captures = 30;
-  // for (int i = 0; i < num_captures; i++) {
-  //   sleep(3);
-  //   printf("Capture! ");
-
-  //   sbgc_update(&sbgc);
-  //   std::lock_guard<std::mutex> lock(mtx);
-  //   const auto ts = timestamp_now();
-  //   record(ts, &sbgc, frame0, frame1, images, joint_angles);
+  //       sbgc_update(&sbgc);
+  //       std::lock_guard<std::mutex> lock(mtx);
+  //       const auto ts = timestamp_now();
+  //       record(ts, &sbgc, frame0, frame1, images, joint_angles);
+  //     }
+  //   }
   // }
 
-  // Save data
-  const std::string save_dir = "/home/chutsu/calib_gimbal";
-  save_data(save_dir, images, joint_angles);
-
-  // Clean up
-  sbgc_off(&sbgc);
-  // aprilgrid_free(grid0);
-  // aprilgrid_free(grid1);
+  // Run threads
+  std::thread thread0(realsense_thread);
+  std::thread thread1(sbgc_thread);
+  std::thread thread2(capture_thread);
+  thread0.join();
+  thread1.join();
+  thread2.join();
 
   return 0;
 }

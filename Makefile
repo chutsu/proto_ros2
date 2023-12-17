@@ -11,6 +11,9 @@ help: ## Help
 install_docker: ## Install Docker (Ubuntu only)
 	@bash scripts/install_docker.bash
 
+install_librealsense: ## Install librealsense (Ubuntu only)
+	@bash scripts/install_librealsense.bash
+
 build_docker:  ## Build proto_ros2 docker
 	@cd docker && \
 		docker build -t proto_ros2 \

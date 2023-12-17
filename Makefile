@@ -42,42 +42,4 @@ ${HOME}/proto_ws/src/proto_ros2:
 	@cd ${HOME} && mkdir -p ${HOME}/proto_ws/src && cd ${HOME}/proto_ws/src && ln -s ${PWD} .
 
 build: ${HOME}/proto_ws/src/proto_ros2 ## Build proto_ws
-	@cd ${ROS2_WS} && GZ_VERSION=garden MAKEFLAGS="-j4" colcon build
-
-sim_calib:  ## Run calibration simulation
-	@cd ${ROS2_WS} \
-		&& colcon build --packages-select proto_ros2 \
-		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 proto_ros2.launch.py \
-			gz_world:=sim_calib.sdf \
-			has_mav:=true \
-			has_gimbal:=true \
-			has_aprilgrid:=true
-
-sim_gimbal: ## Run gimbal simulation
-	@cd ${ROS2_WS} \
-		&& colcon build --packages-select proto_ros2 \
-		&& source install/setup.bash \
-		&& ros2 run proto_ros2 gz_gimbal
-
-sim_castle:  ## Run castle simulation
-	@cd ${ROS2_WS} \
-		&& colcon build --packages-select proto_ros2 \
-		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 proto_ros2.launch.py \
-			gz_world:=sim_castle.sdf \
-			enable_rqt:=true \
-			has_mav:=true \
-			has_gimbal:=true
-
-sim_sandbox:  ## Run sandbox simulation
-	@cd ${ROS2_WS} \
-		&& colcon build --packages-select proto_ros2 \
-		&& source install/setup.bash \
-		&& ros2 launch proto_ros2 proto_ros2.launch.py \
-			gz_world:=sim_sandbox.sdf \
-			run_on_start:=true \
-			enable_headless:=false \
-			has_mav:=true \
-			has_gimbal:=true \
-			has_aprilgrid:=true
+	@cd ${ROS2_WS} && source /opt/ros/humble/setup.bash && colcon build --packages-select proto_ros2

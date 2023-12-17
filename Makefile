@@ -46,3 +46,11 @@ ${HOME}/proto_ws/src/proto_ros2:
 
 build: ${HOME}/proto_ws/src/proto_ros2 ## Build proto_ws
 	@cd ${ROS2_WS} && source /opt/ros/humble/setup.bash && colcon build --packages-select proto_ros2
+
+vicon_experiments:
+	@cd ${ROS2_WS} \
+		&& source /opt/ros/humble/setup.bash \
+		&& colcon build --packages-select proto_ros2 \
+		&& colcon build --packages-select ros2_vicon \
+		&& source install/setup.bash \
+		&& ros2 launch proto_ros2 vicon_experiments.py

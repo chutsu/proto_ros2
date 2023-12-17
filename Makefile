@@ -6,10 +6,13 @@ help: ## Help
 	@echo -e "\033[1;34m[make targets]:\033[0m"
 	@egrep -h '\s##\s' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; \
-		{printf "\033[1;36m%-15s\033[0m %s\n", $$1, $$2}'
+		{printf "\033[1;36m%-20s\033[0m %s\n", $$1, $$2}'
 
 install_docker: ## Install Docker (Ubuntu only)
 	@bash scripts/install_docker.bash
+
+install_ros2: ## Install ROS2 (Ubuntu only)
+	@bash scripts/install_ros2.bash
 
 install_librealsense: ## Install librealsense (Ubuntu only)
 	@bash scripts/install_librealsense.bash

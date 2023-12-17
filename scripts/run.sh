@@ -60,4 +60,15 @@ set -e
 #   && ros2 launch proto_ros2 vicon_experiments.py
 # " C-m C-m
 
+tmux send-keys -t dev -R C-l C-m
+tmux send-keys -t dev -R "\
+cd ~/proto_ws \
+  && colcon build --packages-select proto_ros2 \
+  && colcon build --packages-select ros2_vicon \
+  && source install/setup.bash \
+  && ros2 run proto_ros2 bag2euroc
+" C-m C-m
+
 # python3 scripts/okvis_calib_converter.py
+
+# make build

@@ -25,27 +25,25 @@ if __name__ == "__main__":
 %YAML:1.0
 # extrinsics and intrinsics per camera
 cameras:
-     - T_SC:
-        [{T_SC0[0, 0]}, {T_SC0[0, 1]}, {T_SC0[0, 2]}, {T_SC0[0, 3]},
-         {T_SC0[1, 0]}, {T_SC0[1, 1]}, {T_SC0[1, 2]}, {T_SC0[1, 3]},
-         {T_SC0[2, 0]}, {T_SC0[2, 1]}, {T_SC0[2, 2]}, {T_SC0[2, 3]},
-         {T_SC0[3, 0]}, {T_SC0[3, 1]}, {T_SC0[3, 2]}, {T_SC0[3, 3]}],
+     - {T_SC:[{T_SC0[0, 0]}, {T_SC0[0, 1]}, {T_SC0[0, 2]}, {T_SC0[0, 3]},
+              {T_SC0[1, 0]}, {T_SC0[1, 1]}, {T_SC0[1, 2]}, {T_SC0[1, 3]},
+              {T_SC0[2, 0]}, {T_SC0[2, 1]}, {T_SC0[2, 2]}, {T_SC0[2, 3]},
+              {T_SC0[3, 0]}, {T_SC0[3, 1]}, {T_SC0[3, 2]}, {T_SC0[3, 3]}],
         image_dimension: [640, 480],
         distortion_coefficients: {cam0_D},
         distortion_type: radialtangential,
         focal_length: [{cam0_fx}, {cam0_fy}],
-        principal_point: [{cam0_cx}, {cam0_cy}]
+        principal_point: [{cam0_cx}, {cam0_cy}]}
 
-     - T_SC:
-        [{T_SC1[0, 0]}, {T_SC1[0, 1]}, {T_SC1[0, 2]}, {T_SC1[0, 3]},
-         {T_SC1[1, 0]}, {T_SC1[1, 1]}, {T_SC1[1, 2]}, {T_SC1[1, 3]},
-         {T_SC1[2, 0]}, {T_SC1[2, 1]}, {T_SC1[2, 2]}, {T_SC1[2, 3]},
-         {T_SC1[3, 0]}, {T_SC1[3, 1]}, {T_SC1[3, 2]}, {T_SC1[3, 3]}],
+     - {T_SC: [{T_SC1[0, 0]}, {T_SC1[0, 1]}, {T_SC1[0, 2]}, {T_SC1[0, 3]},
+               {T_SC1[1, 0]}, {T_SC1[1, 1]}, {T_SC1[1, 2]}, {T_SC1[1, 3]},
+               {T_SC1[2, 0]}, {T_SC1[2, 1]}, {T_SC1[2, 2]}, {T_SC1[2, 3]},
+               {T_SC1[3, 0]}, {T_SC1[3, 1]}, {T_SC1[3, 2]}, {T_SC1[3, 3]}],
         image_dimension: [640, 480],
         distortion_coefficients: {cam1_D},
         distortion_type: radialtangential,
         focal_length: [{cam1_fx}, {cam1_fy}],
-        principal_point: [{cam1_cx}, {cam1_cy}]
+        principal_point: [{cam1_cx}, {cam1_cy}]}
 
 # additional camera parameters
 camera_parameters:

@@ -38,16 +38,16 @@ LINK_DIRECTORIES(/usr/local/lib)
 
 # EXPORT DEPENDENCIES
 AMENT_EXPORT_DEPENDENCIES(
-	ament_cmake
-	rclcpp
-	rclcpp_components
-	rosidl_default_runtime
-	eigen3_cmake_module
-	Eigen3
+  ament_cmake
+  rclcpp
+  rclcpp_components
+  rosidl_default_runtime
+  eigen3_cmake_module
+  Eigen3
   realsense2
   std_msgs
-	sensor_msgs
-	geometry_msgs
+  sensor_msgs
+  geometry_msgs
   message_filters
   cv_bridge
   image_transport
@@ -61,12 +61,10 @@ INSTALL(TARGETS sbgc_node DESTINATION lib/${PROJECT_NAME})
 
 # -- RealSense NODE
 ADD_EXECUTABLE(rs_node src/rs_node.cpp)
+AMENT_TARGET_DEPENDENCIES(rs_node rclcpp image_transport cv_bridge)
 TARGET_LINK_LIBRARIES(
   rs_node
-  rclcpp::rclcpp
-  image_transport::image_transport
-  cv_bridge::cv_bridge
-  realsense2
+  realsense2::realsense2
   ${OpenCV_LIBS}
 )
 INSTALL(TARGETS rs_node DESTINATION lib/${PROJECT_NAME})
@@ -75,7 +73,7 @@ INSTALL(TARGETS rs_node DESTINATION lib/${PROJECT_NAME})
 ADD_EXECUTABLE(calib_camera_record src/calib_camera_record.cpp)
 TARGET_LINK_LIBRARIES(
   calib_camera_record
-  realsense2
+  realsense2::realsense2
   apriltags
   ${OpenCV_LIBS}
 )
@@ -85,7 +83,7 @@ INSTALL(TARGETS calib_camera_record DESTINATION lib/${PROJECT_NAME})
 ADD_EXECUTABLE(calib_camimu_record src/calib_camimu_record.cpp)
 TARGET_LINK_LIBRARIES(
   calib_camimu_record
-  realsense2
+  realsense2::realsense2
   apriltags
   ${OpenCV_LIBS}
 )
@@ -95,7 +93,7 @@ INSTALL(TARGETS calib_camimu_record DESTINATION lib/${PROJECT_NAME})
 ADD_EXECUTABLE(calib_gimbal_record src/calib_gimbal_record.cpp)
 TARGET_LINK_LIBRARIES(
   calib_gimbal_record
-  realsense2
+  realsense2::realsense2
   apriltags
   ${OpenCV_LIBS}
 )
@@ -105,7 +103,7 @@ INSTALL(TARGETS calib_gimbal_record DESTINATION lib/${PROJECT_NAME})
 ADD_EXECUTABLE(calib_gimbal_inspect src/calib_gimbal_inspect.cpp)
 TARGET_LINK_LIBRARIES(
   calib_gimbal_inspect
-  realsense2
+  realsense2::realsense2
   apriltags
   ${OpenCV_LIBS}
 )

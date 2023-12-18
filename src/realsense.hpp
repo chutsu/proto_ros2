@@ -468,7 +468,7 @@ struct rs_d435i_t {
   std::function<void(const rs2::video_frame &, const rs2::video_frame &)> image_callback;
   // clang-format on
 
-  rs_d435i_t() {
+  rs_d435i_t(const bool enable_imu = true) {
     // Connect to device
     rs2::context ctx;
     rs2::device_list devices = ctx.query_devices();
@@ -489,7 +489,9 @@ struct rs_d435i_t {
 
     // Configure stereo and motion modules
     configure_stereo_module();
-    configure_motion_module();
+    if (enable_imu) {
+      configure_motion_module();
+    }
   }
 
   void configure_stereo_module() {

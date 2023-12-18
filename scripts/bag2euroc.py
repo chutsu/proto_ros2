@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import argparse
 
 import cv2
 
@@ -30,6 +31,7 @@ class BagNode(Node):
     topic_imu0 = "/rs/imu0"
     topic_body0 = "/vicon/realsense_d435/realsense_d435"
     topic_grid0 = "/vicon/aprilgrid/aprilgrid"
+    topic_okvis = "/okvis/pose"
 
     # Create directories
     self.cam0_dir = os.path.join(save_dir, "cam0")
@@ -37,12 +39,14 @@ class BagNode(Node):
     self.imu0_dir = os.path.join(save_dir, "imu0")
     self.grid0_dir = os.path.join(save_dir, "grid0")
     self.body0_dir = os.path.join(save_dir, "body0")
+    self.okvis_dir = os.path.join(save_dir, "okvis")
     mkdir(save_dir)
     mkdir(self.cam0_dir)
     mkdir(self.cam1_dir)
     mkdir(self.imu0_dir)
     mkdir(self.grid0_dir)
     mkdir(self.body0_dir)
+    mkdir(self.okvis_dir)
 
     # Initialize imu0 csv file
     imu0_csv = os.path.join(self.imu0_dir, "data.csv")
@@ -59,6 +63,11 @@ class BagNode(Node):
     self.body0_csv = open(body0_csv, "w")
     self.body0_csv.write(f"timestamp,rx,ry,rz,qx,qy,qz,qw\n")
 
+    # Initialize okvis_pose csv file
+    okvis_csv = os.path.join(self.okvis_dir, "data.csv")
+    self.okvis_csv = open(okvis_csv, "w")
+    self.okvis_csv.write(f"timestamp,rx,ry,rz,qx,qy,qz,qw\n")
+
     # Initialize subscribers
     self.cv_bridge = CvBridge()
     init_sub = self.create_subscription
@@ -67,6 +76,7 @@ class BagNode(Node):
     self.sub_imu0 = init_sub(Imu, topic_imu0, self.imu0_cb, 100)
     self.sub_grid0 = init_sub(PoseStamped, topic_grid0, self.grid0_cb, 100)
     self.sub_body0 = init_sub(PoseStamped, topic_body0, self.body0_cb, 100)
+    self.sub_okvis = init_sub(PoseStamped, topic_okvis, self.okvis_cb, 100)
 
   def cam0_cb(self, msg):
     print(".", end="")
@@ -119,12 +129,20 @@ class BagNode(Node):
   def body0_cb(self, msg):
     self._write_pose(self.body0_csv, msg)
 
+  def okvis_cb(self, msg):
+    self._write_pose(self.okvis_csv, msg)
+
 
 if __name__ == "__main__":
-  save_dir = "/tmp/calib0"
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--save_dir')
+  args = parser.parse_args()
+
+  if os.path.exists(args.save_dir):
+    raise RuntimeError(f"Save dir [{save_dir}] already exists!")
 
   rclpy.init()
-  bag_node = BagNode(save_dir)
+  bag_node = BagNode(args.save_dir)
   rclpy.spin(bag_node)
   bag_node.destroy_node()
   rclpy.shutdown()

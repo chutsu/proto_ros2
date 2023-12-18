@@ -1,35 +1,33 @@
 %YAML:1.0
 # extrinsics and intrinsics per camera
 cameras:
-     T_SC: [0.9999981611636692, 0.0015073856580174844, 0.0011855200369675274, -0.004185052223446946,
-         -0.0015114950052909696, 0.999992826596483, 0.0034730589435404786, -0.001405516727567082,
-         -0.0011802762935129827, -0.003474844464768063, 0.9999932661792362, 0.013467474797263729,
-         0.0, 0.0, 0.0, 1.0]
-     image_dimension: [640, 480]
-     distortion_coefficients: [0.01439635733714173, -0.01711002520064612, -0.00036986015688269, 0.00048400006763507045]
-     distortion_type: radialtangential
-     focal_length: [380.4512213951024, 381.4127464040453]
-     principal_point: [321.10261911472014, 241.51747260749895]
+    - {T_SC: [0.9999981611636692, 0.0015073856580174844, 0.0011855200369675274, -0.004185052223446946,
+              -0.0015114950052909696, 0.999992826596483, 0.0034730589435404786, -0.001405516727567082,
+              -0.0011802762935129827, -0.003474844464768063, 0.9999932661792362, 0.013467474797263729,
+              0.0, 0.0, 0.0, 1.0],
+      image_dimension: [640, 480],
+      distortion_coefficients: [0.01439635733714173, -0.01711002520064612, -0.00036986015688269, 0.00048400006763507045],
+      distortion_type: radialtangential,
+      focal_length: [380.4512213951024, 381.4127464040453],
+      principal_point: [321.10261911472014, 241.51747260749895]}
 
-     T_SC: [
-       0.9999911157249105, 0.001355752071380918, -0.003991291466355369, 0.045819431574659966,
-       -0.0013487447136270904, 0.9999975454573546, 0.0017578301862328526, -0.0015268687395930518,
-       0.003993664851476377, -0.0017524313359201253, 0.9999904897675114, 0.013674533582431373,
-       0.0, 0.0, 0.0, 1.0
-     ]
-     image_dimension: [640, 480]
-     distortion_coefficients: [0.006107371863541705, -0.003987995840632171, -0.00020523064025692887, 0.0003013834060957737]
-     distortion_type: radialtangential
-     focal_length: [380.9661957919767, 381.838049435172]
-     principal_point: [320.3423844598723, 241.25146755593002]
+    - {T_SC: [0.9999911157249105, 0.001355752071380918, -0.003991291466355369, 0.045819431574659966,
+              -0.0013487447136270904, 0.9999975454573546, 0.0017578301862328526, -0.0015268687395930518,
+              0.003993664851476377, -0.0017524313359201253, 0.9999904897675114, 0.013674533582431373,
+              0.0, 0.0, 0.0, 1.0],
+      image_dimension: [640, 480],
+      distortion_coefficients: [0.006107371863541705, -0.003987995840632171, -0.00020523064025692887, 0.0003013834060957737],
+      distortion_type: radialtangential,
+      focal_length: [380.9661957919767, 381.838049435172],
+      principal_point: [320.3423844598723, 241.25146755593002]}
 
 # additional camera parameters
 camera_parameters:
     timestamp_tolerance: 0.005 # [s] stereo frame out-of-sync tolerance
     sync_cameras: [0, 1]
-    image_delay: -0.00780146 # [s] timestamp_camera_correct = timestamp_camera - image_delay
+    image_delay: 0.0 # [s] timestamp_camera_correct = timestamp_camera - image_delay
     online_calibration: # some parameters to set the online
-        do_extrinsics: false # Do we online-calibrate extrinsics?
+        do_extrinsics: true # Do we online-calibrate extrinsics?
         do_extrinsics_final_ba: false # Do we online-calibrate extrinsics?
         sigma_r: 0.001 # T_SCi position prior stdev [m]
         sigma_alpha: 0.01 # T_SCi orientation prior stdev [rad]

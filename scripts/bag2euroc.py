@@ -10,6 +10,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Vector3Stamped
 from cv_bridge import CvBridge
 
 
@@ -21,7 +22,7 @@ def mkdir(dir_path):
     raise RuntimeError(f"Failed to create [{dir_path}]")
 
 
-class BagNode(Node):
+class MocapBagProcessor(Node):
   def __init__(self, save_dir):
     super().__init__("bag_node")
 
@@ -34,8 +35,8 @@ class BagNode(Node):
     topic_okvis = "/okvis/pose"
 
     # Create directories
-    self.cam0_dir = os.path.join(save_dir, "cam0")
-    self.cam1_dir = os.path.join(save_dir, "cam1")
+    self.cam0_dir = os.path.join(save_dir, "cam0", "data")
+    self.cam1_dir = os.path.join(save_dir, "cam1", "data")
     self.imu0_dir = os.path.join(save_dir, "imu0")
     self.grid0_dir = os.path.join(save_dir, "grid0")
     self.body0_dir = os.path.join(save_dir, "body0")
@@ -121,7 +122,7 @@ class BagNode(Node):
     qx = msg.pose.orientation.x
     qy = msg.pose.orientation.y
     qz = msg.pose.orientation.z
-    f.write(f"{ts},{rx},{ry},{rz},{qw},{qx},{qy},{qz}\n")
+    f.write(f"{ts},{rx},{ry},{rz},{qx},{qy},{qz},{qw}\n")
 
   def grid0_cb(self, msg):
     self._write_pose(self.grid0_csv, msg)
@@ -133,16 +134,97 @@ class BagNode(Node):
     self._write_pose(self.okvis_csv, msg)
 
 
+class ExperimentBagProcessor(Node):
+  def __init__(self, save_dir):
+    super().__init__("bag_node")
+
+    # ROS topics
+    topic_pose = "/okvis/pose"
+    topic_tracking = "/okvis/tracking"
+    topic_sbgc = "/sbgc/joints"
+
+    # Create directories
+    self.okvis_dir = os.path.join(save_dir, "okvis")
+    self.sbgc_dir = os.path.join(save_dir, "sbgc")
+    self.tracking_dir = os.path.join(save_dir, "tracking", "data")
+    mkdir(save_dir)
+    mkdir(self.okvis_dir)
+    mkdir(self.tracking_dir)
+    mkdir(self.sbgc_dir)
+
+    # Initialize okvis_pose csv file
+    okvis_csv = os.path.join(self.okvis_dir, "data.csv")
+    self.okvis_csv = open(okvis_csv, "w")
+    self.okvis_csv.write(f"timestamp,rx,ry,rz,qx,qy,qz,qw\n")
+
+    # Initialize sbgc csv file
+    sbgc_csv = os.path.join(self.sbgc_dir, "data.csv")
+    self.sbgc_csv = open(sbgc_csv, "w")
+    self.sbgc_csv.write(f"timestamp,theta0,theta1,theta2\n")
+
+    # Initialize subscribers
+    self.cv_bridge = CvBridge()
+    init_sub = self.create_subscription
+    self.sub_tracking = init_sub(Image, topic_tracking, self.tracking_cb, 100)
+    self.sub_okvis = init_sub(PoseStamped, topic_pose, self.pose_cb, 100)
+    self.sub_sbgc = init_sub(Vector3Stamped, topic_sbgc, self.sbgc_cb, 100)
+
+  def _write_pose(self, f, msg):
+    print(".", end="")
+    sys.stdout.flush()
+
+    ts = int(msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec)
+    rx = msg.pose.position.x
+    ry = msg.pose.position.y
+    rz = msg.pose.position.z
+    qw = msg.pose.orientation.w
+    qx = msg.pose.orientation.x
+    qy = msg.pose.orientation.y
+    qz = msg.pose.orientation.z
+    f.write(f"{ts},{rx},{ry},{rz},{qx},{qy},{qz},{qw}\n")
+
+  def pose_cb(self, msg):
+    self._write_pose(self.okvis_csv, msg)
+
+  def tracking_cb(self, msg):
+    print(".", end="")
+    sys.stdout.flush()
+
+    image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+    ts = int(msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec)
+    image_path = os.path.join(self.tracking_dir, f"{ts}.png")
+    cv2.imwrite(image_path, image)
+
+  def sbgc_cb(self, msg):
+    print(".", end="")
+    sys.stdout.flush()
+
+    ts = int(msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec)
+    theta0 = msg.vector.x
+    theta1 = msg.vector.y
+    theta2 = msg.vector.z
+    self.sbgc_csv.write(f"{ts},{theta0},{theta1},{theta2}\n")
+
+
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument('--save_dir')
+  parser.add_argument('--mode', required=True)
+  parser.add_argument('--save_dir', required=True)
   args = parser.parse_args()
 
   if os.path.exists(args.save_dir):
-    raise RuntimeError(f"Save dir [{save_dir}] already exists!")
+    raise RuntimeError(f"Save dir [{args.save_dir}] already exists!")
 
   rclpy.init()
-  bag_node = BagNode(args.save_dir)
-  rclpy.spin(bag_node)
-  bag_node.destroy_node()
-  rclpy.shutdown()
+  if args.mode == "mocap":
+    node = MocapBagProcessor(args.save_dir)
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+  elif args.mode == "exp":
+    node = ExperimentBagProcessor(args.save_dir)
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+  else:
+    print(f"Invalid mode [{args.mode}]!")

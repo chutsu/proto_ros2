@@ -156,6 +156,10 @@ cv::Mat frame2cvmat(const rs2::frame &frame,
 
 // Video frame to timestamp
 uint64_t vframe2ts(const rs2::video_frame &vf, const bool correct_ts) {
+  if (vf.get() == nullptr) {
+    return 0;
+  }
+
   // Correct timestamp?
   if (correct_ts == false) {
     const auto ts_ms = vf.get_timestamp();
@@ -633,6 +637,7 @@ struct rs_multi_d435i_t {
   const int gyro_hz = 400;
 
   // RealSense config and device
+  rs2::context ctx;
   std::map<std::string, rs2::config> configs;
   std::map<std::string, rs2::device> devices;
   std::map<int, std::string> serials;
@@ -640,7 +645,6 @@ struct rs_multi_d435i_t {
 
   rs_multi_d435i_t(const bool enable_imu = true, const bool hw_trigger = true) {
     // Connect to device
-    rs2::context ctx;
     if (ctx.query_devices().size() == 0) {
       RS_FATAL("No device connected, please connect a RealSense device");
     }
@@ -676,6 +680,16 @@ struct rs_multi_d435i_t {
       configs[serials[i]] = cfg;
       pipelines[serials[i]] = pipe;
     }
+
+    // Check if device is still connected
+    ctx.set_devices_changed_callback([&](rs2::event_information &info) {
+      for (const auto &[serial, device] : devices) {
+        if (info.was_removed(device)) {
+          RS_FATAL("Lost connection to sensor!");
+          fflush(stdout);
+        }
+      }
+    });
   }
 
   void configure_stereo_module(rs2::config &cfg,

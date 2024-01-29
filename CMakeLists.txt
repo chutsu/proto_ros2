@@ -54,12 +54,12 @@ AMENT_EXPORT_DEPENDENCIES(
 )
 
 # ROS NODES
-# -- SBGC NODE
+# -- SBGC node
 ADD_EXECUTABLE(sbgc_node src/sbgc_node.cpp)
 AMENT_TARGET_DEPENDENCIES(sbgc_node rclcpp std_msgs geometry_msgs)
 INSTALL(TARGETS sbgc_node DESTINATION lib/${PROJECT_NAME})
 
-# -- RealSense NODE
+# -- RealSense node
 ADD_EXECUTABLE(rs_node src/rs_node.cpp)
 AMENT_TARGET_DEPENDENCIES(rs_node rclcpp image_transport cv_bridge)
 TARGET_LINK_LIBRARIES(
@@ -68,6 +68,16 @@ TARGET_LINK_LIBRARIES(
   ${OpenCV_LIBS}
 )
 INSTALL(TARGETS rs_node DESTINATION lib/${PROJECT_NAME})
+
+# -- RealSense Multi-camera node
+ADD_EXECUTABLE(rs_multicam_node src/rs_multicam_node.cpp)
+AMENT_TARGET_DEPENDENCIES(rs_multicam_node rclcpp image_transport cv_bridge)
+TARGET_LINK_LIBRARIES(
+  rs_multicam_node
+  realsense2::realsense2
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS rs_multicam_node DESTINATION lib/${PROJECT_NAME})
 
 # -- Calib Camera Record
 ADD_EXECUTABLE(calib_camera_record src/calib_camera_record.cpp)

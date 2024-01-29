@@ -91,8 +91,9 @@ int main(int argc, char *argv[]) {
   // clang-format on
 
   // Connect to device
+  rs2_list_devices();
   RCLCPP_INFO(node->get_logger(), "Connecting to RealSense Device");
-  rs_d435i_t device{false};
+  rs_d435i_t device{0, false, true};
 
   // -- Register image callback
   device.image_callback = [&](const rs2::video_frame &ir0,

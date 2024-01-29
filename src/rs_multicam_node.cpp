@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
   // Initialize ROS node
   rclcpp::init(argc, argv);
   const rclcpp::NodeOptions options;
-  const auto node = rclcpp::Node::make_shared("rs_multi_node", options);
+  const auto node = rclcpp::Node::make_shared("rs_multicam_node", options);
   const std::string topic_dev0_ir0 = "/rs0/ir0/image";
   const std::string topic_dev0_ir1 = "/rs0/ir1/image";
   const std::string topic_dev0_acc0 = "/rs0/acc0/raw";

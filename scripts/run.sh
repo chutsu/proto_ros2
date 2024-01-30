@@ -24,6 +24,32 @@ COLCON_WS=~/colcon_ws
 
 # tmux send-keys -t dev -R C-l C-m
 # tmux send-keys -t dev -R "\
+# cd $COLCON_WS \
+#   && colcon build \
+#   && source install/setup.bash \
+#   && ros2 launch proto_ros2 perception_module.launch.py
+# " C-m C-m
+
+tmux send-keys -t dev -R C-l C-m
+tmux send-keys -t dev -R "\
+  rm -rf  ~/calib_multi_rs \
+  && cd $COLCON_WS \
+  && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+  && source install/setup.bash \
+  && ros2 run proto_ros2 calib_multi_rs_record /home/chutsu/test
+" C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+#   rm -rf  ~/calib_gimbal \
+#   && cd $COLCON_WS \
+#   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 calib_gimbal_record2
+# " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
 #   rm -rf ~/calib_gimbal_data \
 #   && cd $COLCON_WS \
 #   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
@@ -58,13 +84,21 @@ COLCON_WS=~/colcon_ws
 #   && ros2 run proto_ros2 bag2euroc
 # " C-m C-m
 
-tmux send-keys -t dev -R C-l C-m
-tmux send-keys -t dev -R "\
-cd $COLCON_WS \
-  && colcon build --packages-select proto_ros2 \
-  && source install/setup.bash \
-  && ros2 run proto_ros2 rs_multicam_node
-" C-m C-m
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+# cd $COLCON_WS \
+#   && colcon build --packages-select proto_ros2 \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 rs_node
+# " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+# cd $COLCON_WS \
+#   && colcon build --packages-select proto_ros2 \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 rs_multicam_node
+# " C-m C-m
 
 # python3 scripts/okvis_calib_converter.py
 # python3 scripts/plot_poses.py --data_file=/data/gimbal_experiments/odom_fixed/okvis/data.csv

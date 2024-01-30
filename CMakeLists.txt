@@ -99,6 +99,16 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS calib_camimu_record DESTINATION lib/${PROJECT_NAME})
 
+# -- Calib Gimbal Inspect
+ADD_EXECUTABLE(calib_gimbal_inspect src/calib_gimbal_inspect.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_gimbal_inspect
+  realsense2::realsense2
+  apriltags
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_gimbal_inspect DESTINATION lib/${PROJECT_NAME})
+
 # -- Calib Gimbal Record
 ADD_EXECUTABLE(calib_gimbal_record src/calib_gimbal_record.cpp)
 TARGET_LINK_LIBRARIES(
@@ -109,15 +119,25 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS calib_gimbal_record DESTINATION lib/${PROJECT_NAME})
 
-# -- Calib Gimbal Inspect
-ADD_EXECUTABLE(calib_gimbal_inspect src/calib_gimbal_inspect.cpp)
+# -- Calib Gimbal Record 2
+ADD_EXECUTABLE(calib_gimbal_record2 src/calib_gimbal_record2.cpp)
 TARGET_LINK_LIBRARIES(
-  calib_gimbal_inspect
+  calib_gimbal_record2
   realsense2::realsense2
   apriltags
   ${OpenCV_LIBS}
 )
-INSTALL(TARGETS calib_gimbal_inspect DESTINATION lib/${PROJECT_NAME})
+INSTALL(TARGETS calib_gimbal_record2 DESTINATION lib/${PROJECT_NAME})
+
+# -- Calib Multi Realsense Recorder
+ADD_EXECUTABLE(calib_multi_rs_record src/calib_multi_rs_record.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_multi_rs_record
+  realsense2::realsense2
+  apriltags
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_multi_rs_record DESTINATION lib/${PROJECT_NAME})
 
 # INSTALL CONFIG AND LAUNCH FILES
 INSTALL(DIRECTORY config DESTINATION share/${PROJECT_NAME}/)

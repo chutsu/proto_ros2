@@ -11,13 +11,6 @@
 #include "realsense.hpp"
 
 /**
- * Convert Degrees to Radians.
- */
-double deg2rad(const double d) {
-  return d * (M_PI / 180.0);
-}
-
-/**
  * Save data
  */
 void save_data(

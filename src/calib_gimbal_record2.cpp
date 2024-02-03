@@ -11,13 +11,6 @@
 #include "realsense.hpp"
 
 /**
- * Convert Degrees to Radians.
- */
-double deg2rad(const double d) {
-  return d * (M_PI / 180.0);
-}
-
-/**
  * Save data
  */
 void save_data(
@@ -106,8 +99,8 @@ void save_data(
 
       cv::Mat viz_row0;
       cv::Mat viz_row1;
-      cv::hconcat(viz0, viz1, viz_row0);
-      cv::hconcat(viz2, viz3, viz_row1);
+      cv::hconcat(viz2, viz3, viz_row0);
+      cv::hconcat(viz0, viz1, viz_row1);
 
       cv::Mat viz;
       cv::vconcat(viz_row0, viz_row1, viz);
@@ -158,6 +151,14 @@ void save_data(
 }
 
 int main(int argc, char *argv[]) {
+  // Parse device index from command args
+  if (argc < 2) {
+    printf("calib_gimbal_record2 <save_dir>\n");
+    printf("Example: calib_gimbal_record2 /tmp/calib_gimbal\n");
+    return -1;
+  }
+  const std::string save_dir{argv[1]};
+
   // Setup
   sbgc_t sbgc;
   rs_multi_d435i_t rs_devices;
@@ -308,7 +309,6 @@ int main(int argc, char *argv[]) {
     run = false;
 
     // Save data
-    const std::string save_dir = "/home/chutsu/calib_gimbal";
     save_data(save_dir, images, joint_angles);
   };
 

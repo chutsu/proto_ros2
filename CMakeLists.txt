@@ -109,6 +109,16 @@ TARGET_LINK_LIBRARIES(
 )
 INSTALL(TARGETS calib_gimbal_inspect DESTINATION lib/${PROJECT_NAME})
 
+# -- Calib Gimbal Inspect 2
+ADD_EXECUTABLE(calib_gimbal_inspect2 src/calib_gimbal_inspect2.cpp)
+TARGET_LINK_LIBRARIES(
+  calib_gimbal_inspect2
+  realsense2::realsense2
+  apriltags
+  ${OpenCV_LIBS}
+)
+INSTALL(TARGETS calib_gimbal_inspect2 DESTINATION lib/${PROJECT_NAME})
+
 # -- Calib Gimbal Record
 ADD_EXECUTABLE(calib_gimbal_record src/calib_gimbal_record.cpp)
 TARGET_LINK_LIBRARIES(

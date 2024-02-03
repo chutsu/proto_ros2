@@ -480,7 +480,7 @@ struct rs_d435i_t {
   int ir_height = 480;
   std::string ir_format = "Y8";
   int ir_fps = 15;
-  double ir_exposure = 10000.0;
+  double ir_exposure = 20000.0;
   const int accel_hz = 250;
   const int gyro_hz = 400;
 

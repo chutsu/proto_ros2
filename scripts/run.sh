@@ -30,14 +30,41 @@ COLCON_WS=~/colcon_ws
 #   && ros2 launch proto_ros2 perception_module.launch.py
 # " C-m C-m
 
-tmux send-keys -t dev -R C-l C-m
-tmux send-keys -t dev -R "\
-  rm -rf  ~/calib_multi_rs \
-  && cd $COLCON_WS \
-  && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
-  && source install/setup.bash \
-  && ros2 run proto_ros2 calib_multi_rs_record /home/chutsu/test
-" C-m C-m
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+#   rm -rf  ~/calib_camera-rs0 \
+#   && cd $COLCON_WS \
+#   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 calib_camera_record 0 /home/chutsu/calib_camera-rs0
+# " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+#   rm -rf  ~/calib_camera-rs1 \
+#   && cd $COLCON_WS \
+#   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 calib_camera_record 1 /home/chutsu/calib_camera-rs1
+# " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+#   rm -rf  ~/calib_camimu-rs0 \
+#   && cd $COLCON_WS \
+#   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 calib_camimu_record 0 /home/chutsu/calib_camimu-rs0
+# " C-m C-m
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "\
+#   rm -rf  ~/calib_camimu-rs1 \
+#   && cd $COLCON_WS \
+#   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 calib_camimu_record 0 /home/chutsu/calib_camimu-rs1
+# " C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m
 # tmux send-keys -t dev -R "\
@@ -45,7 +72,7 @@ tmux send-keys -t dev -R "\
 #   && cd $COLCON_WS \
 #   && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
 #   && source install/setup.bash \
-#   && ros2 run proto_ros2 calib_gimbal_record2
+#   && ros2 run proto_ros2 calib_gimbal_record2 /home/chutsu/calib_gimbal
 # " C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m
@@ -56,6 +83,14 @@ tmux send-keys -t dev -R "\
 #   && source install/setup.bash \
 #   && ros2 run proto_ros2 calib_gimbal_inspect
 # " C-m C-m
+
+tmux send-keys -t dev -R C-l C-m
+tmux send-keys -t dev -R "\
+  cd $COLCON_WS \
+  && colcon build --packages-select proto_ros2 \
+  && source install/setup.bash \
+  && ros2 run proto_ros2 calib_gimbal_inspect2 /data/gimbal_experiments/calib/calib_gimbal/calib_gimbal-results.yaml
+" C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m
 # tmux send-keys -t dev -R "\

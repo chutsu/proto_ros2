@@ -179,17 +179,13 @@ int main(int argc, char *argv[]) {
       if ((ts_max - ts_min) * 1e-9 < 0.01 && (ts0 - last_ts) * 1e-9 > 0.01) {
         auto frame0 = frame2cvmat(ir0_frame, fwidth, fheight, CV_8UC1);
         auto frame2 = frame2cvmat(ir2_frame, fwidth, fheight, CV_8UC1);
-        auto frame3 = frame2cvmat(ir3_frame, fwidth, fheight, CV_8UC1);
 
+        cv::Mat frame2_viz;
+        cv::cvtColor(frame2, frame2_viz, cv::COLOR_GRAY2BGR);
+
+        // Detect AprilGrid
         detect_aprilgrid(detector, ts0, frame0.clone(), grid0);
         auto frame0_viz = aprilgrid_draw(grid0, frame0);
-
-        // clang-format off
-        const auto T_M0L0 = gimbal_joint_transform(joint0);
-        const auto T_M1L1 = gimbal_joint_transform(joint1);
-        const auto T_M2L2 = gimbal_joint_transform(joint2);
-        const auto T_C0C2 = T_C0M0 * T_M0L0 * T_L0M1 * T_M1L1 * T_L1M2 * T_M2L2 * T_L2C2;
-        // clang-format on
 
         // Get keypoint measurements and object points
         int tag_ids[6 * 6 * 4] = {0};
@@ -205,22 +201,52 @@ int main(int argc, char *argv[]) {
           points.emplace_back(pts[3 * i + 0], pts[3 * i + 1], pts[3 * i + 2]);
         }
         if (keypoints.size() < 10) {
-          return;
+          continue;
         }
 
         // SolvePnp
         Eigen::Matrix4d T_C0F;
         auto cam0_params = calib_conf.cam_params[0];
+        auto cam2_params = calib_conf.cam_params[0];
         solvepnp(calib_conf.cam_res, cam0_params, keypoints, points, T_C0F);
 
+        // clang-format off
+        const auto T_M0L0 = gimbal_joint_transform(joint0);
+        const auto T_M1L1 = gimbal_joint_transform(joint1);
+        const auto T_M2L2 = gimbal_joint_transform(joint2);
+        const auto T_C0C2 = T_C0M0 * T_M0L0 * T_L0M1 * T_M1L1 * T_L1M2 * T_M2L2 * T_L2C2;
+        const auto T_C2C0 = T_C0C2.inverse();
+        // clang-format on
+
+        // Draw
+        for (int i = 0; i < grid0->corners_detected; i++) {
+          const Eigen::Vector2d kp{kps[i * 2 + 0], kps[i * 2 + 1]};
+          const Eigen::Vector3d p_FFi{pts[i * 3 + 0],
+                                      pts[i * 3 + 1],
+                                      pts[i * 3 + 2]};
+          const Eigen::Vector4d hp_FFi = p_FFi.homogeneous();
+          const Eigen::Vector3d p_C2 = (T_C2C0 * T_C0F * hp_FFi).head(3);
+          Eigen::Vector2d z;
+          pinhole_radtan4_project(calib_conf.cam_res, cam2_params, p_C2, z);
+
+          const int marker_size = 2;
+          const cv::Scalar color{0, 255, 0};
+          const cv::Point2f p(z.x(), z.y());
+          cv::circle(frame2_viz, p, marker_size, color, -1);
+        }
+
         // Visualize
-        cv::imshow("Viz", frame0_viz);
+        cv::Mat viz;
+        cv::vconcat(frame2_viz, frame0_viz, viz);
+        cv::imshow("Viz", viz);
         if (cv::waitKey(1) == 'q') {
           printf("Stopping realsense thread...\n");
           realsense_keep_running = false;
         }
+
+        // Update
         last_ts = ts0;
-        // aprilgrid_reset(grid0);
+        aprilgrid_clear(grid0);
       }
     }
   };

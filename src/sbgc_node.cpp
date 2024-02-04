@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <mutex>
+#include <time.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
@@ -15,6 +16,21 @@
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
+/**
+ * Get time now since epoch.
+ * @return Time now in nano-seconds since epoch
+ */
+int64_t time_now() {
+  struct timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  const time_t sec = spec.tv_sec;
+  const long int ns = spec.tv_nsec;
+  const uint64_t BILLION = 1000000000L;
+
+  return (uint64_t) sec * BILLION + (uint64_t) ns;
+}
+
 struct sbgc_node_t : public rclcpp::Node {
   std::mutex mtx;
   sbgc_t sbgc;
@@ -23,6 +39,7 @@ struct sbgc_node_t : public rclcpp::Node {
   rclcpp::Subscription<Vec3Msg>::SharedPtr sub_joints;
 
   double target_angle[3] = {0.0, 0.0, 0.0};
+  int64_t ts_prev = 0;
 
   sbgc_node_t() : Node("sbgc_node") {
     // Connect to SBGC
@@ -54,7 +71,12 @@ struct sbgc_node_t : public rclcpp::Node {
     if (sbgc_update(&sbgc) != 0) {
       return;
     }
-    sbgc_set_angle(&sbgc, target_angle[0], target_angle[1], target_angle[2]);
+
+    const auto dt = (time_now() - ts_prev) * 1e-9;
+    if (dt > 1.0) {
+      sbgc_set_angle(&sbgc, target_angle[0], target_angle[1], target_angle[2]);
+      ts_prev = time_now();
+    }
 
     auto msg = Vec3Msg();
     msg.header = std_msgs::msg::Header();

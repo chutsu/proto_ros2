@@ -31,10 +31,17 @@ void save_data(
   aprilgrid_t *grid0 = aprilgrid_malloc(num_rows, num_cols, tsize, tspacing);
   aprilgrid_t *grid1 = aprilgrid_malloc(num_rows, num_cols, tsize, tspacing);
 
+  printf("saving images: ");
   for (const auto &tuple : images) {
+    printf(".");
+    fflush(stdout);
+
     const auto ts = std::get<0>(tuple);
     const auto frame0 = std::get<1>(tuple);
     const auto frame1 = std::get<2>(tuple);
+    if (frame0.empty() || frame1.empty()) {
+      continue;
+    }
 
     const std::string fname = std::to_string(ts);
     const std::string frame0_path = cam0_dir + "/" + fname + ".png";
@@ -43,7 +50,7 @@ void save_data(
     const std::string det1_path = grid0_dir + "/cam1/" + fname + ".csv";
 
     cv::imwrite(frame0_path, frame0);
-    cv::imwrite(frame1_path, frame0);
+    cv::imwrite(frame1_path, frame1);
     grid0->timestamp = ts;
     grid1->timestamp = ts;
     detect_aprilgrid(detector, ts, frame0, grid0);
@@ -56,19 +63,33 @@ void save_data(
     cv::Mat viz;
     cv::hconcat(viz0, viz1, viz);
     cv::imshow("Viz", viz);
-    cv::waitKey(100);
+    cv::waitKey(1);
 
     aprilgrid_clear(grid0);
     aprilgrid_clear(grid1);
   }
+  printf("\n");
 
   aprilgrid_free(grid0);
   aprilgrid_free(grid1);
 }
 
 int main(int argc, char *argv[]) {
+  // Parse device index from command args
+  if (argc < 3) {
+    printf("calib_camera_record <device_index> <save_dir>\n");
+    printf("Example: calib_camera_record 0 /tmp/calib_camera\n");
+    return -1;
+  }
+  const int device_index = strtol(argv[1], NULL, 10);
+  const std::string save_dir{argv[2]};
+  printf("\n");
+  printf("Device index: %d\n", device_index);
+  printf("Save path: %s\n", save_dir.c_str());
+  printf("\n");
+
   // Setup
-  rs_d435i_t device;
+  rs_d435i_t device{device_index};
   cv::Mat frame0;
   cv::Mat frame1;
   std::vector<std::tuple<int64_t, cv::Mat, cv::Mat>> images;
@@ -81,21 +102,26 @@ int main(int argc, char *argv[]) {
     const std::string encoding = "mono8";
     frame0 = frame2cvmat(ir0, width, height, CV_8UC1);
     frame1 = frame2cvmat(ir1, width, height, CV_8UC1);
+    if (frame0.empty() || frame1.empty()) {
+      return;
+    }
     images.push_back({time_now(), frame0.clone(), frame1.clone()});
 
     cv::Mat viz;
     cv::hconcat(frame0, frame1, viz);
     cv::imshow("Viz", viz);
-    cv::waitKey(1);
+    if (cv::waitKey(1) == 'q') {
+      realsense_keep_running = false;
+    }
   };
 
   // Start realsense
   device.start();
-  sleep(10);
+  sleep(60);
+  cv::destroyAllWindows();
   device.stop();
 
   // Save data
-  const std::string save_dir = "/home/chutsu/calib_camera";
   save_data(save_dir, images);
 
   return 0;

@@ -156,6 +156,10 @@ cv::Mat frame2cvmat(const rs2::frame &frame,
 
 // Video frame to timestamp
 uint64_t vframe2ts(const rs2::video_frame &vf, const bool correct_ts) {
+  if (vf.get() == nullptr) {
+    return 0;
+  }
+
   // Correct timestamp?
   if (correct_ts == false) {
     const auto ts_ms = vf.get_timestamp();
@@ -349,6 +353,32 @@ rs2::device rs2_connect() {
   return devices[0];
 }
 
+// List realsense devices
+void rs2_list_devices() {
+  // Connect to the device
+  rs2::context ctx;
+  rs2::device_list devices = ctx.query_devices();
+  if (devices.size() == 0) {
+    RS_FATAL("No device connected, please connect a RealSense device");
+  }
+
+  printf("Intel RealSense Devices Connected:\n");
+  printf("----------------------------------\n");
+  for (int i = 0; i < devices.size(); i++) {
+    const auto device = devices[i];
+    const auto device_name = device.get_info(RS2_CAMERA_INFO_NAME);
+    const auto serial_no = device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+    const auto firmware_ver = device.get_info(RS2_CAMERA_INFO_FIRMWARE_VERSION);
+    const auto physical_port = device.get_info(RS2_CAMERA_INFO_PHYSICAL_PORT);
+    printf("Device Index:     %d\n", i);
+    printf("Device Name:      %s\n", device_name);
+    printf("Serial Number:    %s\n", serial_no);
+    printf("Firmware Version: %s\n", firmware_ver);
+    printf("Physical Port:    %s\n", physical_port);
+    printf("\n");
+  }
+}
+
 // List realsense sensors
 void rs2_list_sensors(const int device_idx = 0) {
   // Connect to the device
@@ -450,11 +480,13 @@ struct rs_d435i_t {
   int ir_height = 480;
   std::string ir_format = "Y8";
   int ir_fps = 15;
-  double ir_exposure = 10000.0;
+  double ir_exposure = 20000.0;
   const int accel_hz = 250;
   const int gyro_hz = 400;
 
   // RealSense config and device
+  int device_index = 0;
+  std::string serial;
   rs2::config cfg;
   rs2::device device;
   rs2::pipeline pipe;
@@ -468,14 +500,19 @@ struct rs_d435i_t {
   std::function<void(const rs2::video_frame &, const rs2::video_frame &)> image_callback;
   // clang-format on
 
-  rs_d435i_t(const bool enable_imu = true) {
+  rs_d435i_t(const int device_index_ = 0,
+             const bool enable_imu = true,
+             const bool hw_trigger = false) {
     // Connect to device
     rs2::context ctx;
     rs2::device_list devices = ctx.query_devices();
     if (devices.size() == 0) {
       RS_FATAL("No device connected, please connect a RealSense device");
     }
-    device = devices[0];
+    device_index = device_index_;
+    device = devices[device_index];
+    serial = device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+    cfg.enable_device(serial);
 
     // Print device basic info
     // clang-format off
@@ -488,13 +525,13 @@ struct rs_d435i_t {
     // clang-format on
 
     // Configure stereo and motion modules
-    configure_stereo_module();
+    configure_stereo_module(hw_trigger);
     if (enable_imu) {
       configure_motion_module();
     }
   }
 
-  void configure_stereo_module() {
+  void configure_stereo_module(const bool hw_trigger) {
     rs2::sensor stereo;
     if (rs2_get_sensor(device, "Stereo Module", stereo) != 0) {
       RS_FATAL("This RealSense device does not have a [Stereo Module]");
@@ -506,6 +543,12 @@ struct rs_d435i_t {
     stereo.set_option(RS2_OPTION_EXPOSURE, ir_exposure);
     stereo.set_option(RS2_OPTION_EMITTER_ENABLED, false);
     stereo.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
+    if (hw_trigger) {
+      // Hardware trigger is very messy with the realsense, check out this github issue:
+      // https://github.com/IntelRealSense/librealsense/issues/12064
+      printf("HW TRIGGER GEN-LOCK MODE: ON\n");
+      stereo.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 4);
+    }
     // clang-format on
   }
 
@@ -579,5 +622,111 @@ struct rs_d435i_t {
     while (realsense_keep_running) {
       sleep(0.1);
     }
+  }
+};
+
+// RealSense D435I
+struct rs_multi_d435i_t {
+  // Settings
+  int ir_width = 640;
+  int ir_height = 480;
+  std::string ir_format = "Y8";
+  int ir_fps = 15;
+  double ir_exposure = 10000.0;
+  const int accel_hz = 250;
+  const int gyro_hz = 400;
+
+  // RealSense config and device
+  rs2::context ctx;
+  std::map<std::string, rs2::config> configs;
+  std::map<std::string, rs2::device> devices;
+  std::map<int, std::string> serials;
+  std::map<std::string, rs2::pipeline> pipelines;
+
+  rs_multi_d435i_t(const bool enable_imu = true, const bool hw_trigger = true) {
+    // Connect to device
+    if (ctx.query_devices().size() == 0) {
+      RS_FATAL("No device connected, please connect a RealSense device");
+    }
+
+    for (int i = 0; i < ctx.query_devices().size(); i++) {
+      // Get device and serial
+      auto device = ctx.query_devices()[i];
+      devices[serials[i]] = device;
+      serials[i] = device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+
+      // Print device basic info
+      // clang-format off
+      printf("Connected to device[%d]\n", i);
+      printf("  SDK version:      %s\n", RS2_API_FULL_VERSION_STR);
+      printf("  Device Name:      %s\n", device.get_info(RS2_CAMERA_INFO_NAME));
+      printf("  Serial Number:    %s\n", device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+      printf("  Firmware Version: %s\n", device.get_info(RS2_CAMERA_INFO_FIRMWARE_VERSION));
+      printf("  Physical Port:    %s\n", device.get_info(RS2_CAMERA_INFO_PHYSICAL_PORT));
+      printf("  HW TRIGGER:       %s\n", hw_trigger ? "true" : "false");
+      printf("\n");
+      fflush(stdout);
+      // clang-format on
+
+      // Configure device
+      rs2::config cfg;
+      cfg.enable_device(serials[i]);
+      configure_stereo_module(cfg, device, hw_trigger);
+      configure_motion_module(cfg, device, enable_imu);
+
+      // Start pipeline
+      rs2::pipeline pipe(ctx);
+      // pipe.start(cfg);
+      configs[serials[i]] = cfg;
+      pipelines[serials[i]] = pipe;
+    }
+
+    // Check if device is still connected
+    ctx.set_devices_changed_callback([&](rs2::event_information &info) {
+      for (const auto &[serial, device] : devices) {
+        if (info.was_removed(device)) {
+          RS_FATAL("Lost connection to sensor!");
+          fflush(stdout);
+        }
+      }
+    });
+  }
+
+  void configure_stereo_module(rs2::config &cfg,
+                               rs2::device &device,
+                               const bool hw_trigger) {
+    rs2::sensor stereo;
+    if (rs2_get_sensor(device, "Stereo Module", stereo) != 0) {
+      RS_FATAL("This RealSense device does not have a [Stereo Module]");
+    }
+    // clang-format off
+    const auto format = rs2_format_convert(ir_format);
+    cfg.enable_stream(RS2_STREAM_INFRARED, 1, ir_width, ir_height, format, ir_fps);
+    cfg.enable_stream(RS2_STREAM_INFRARED, 2, ir_width, ir_height, format, ir_fps);
+    stereo.set_option(RS2_OPTION_EXPOSURE, ir_exposure);
+    stereo.set_option(RS2_OPTION_EMITTER_ENABLED, false);
+    stereo.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
+    if (hw_trigger) {
+      // Hardware trigger is very messy with the realsense, check out this github issue:
+      // https://github.com/IntelRealSense/librealsense/issues/12064
+      stereo.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 4);
+    }
+    // clang-format on
+  }
+
+  void configure_motion_module(rs2::config &cfg,
+                               rs2::device &device,
+                               const bool enable_imu) {
+    if (enable_imu == false) {
+      return;
+    }
+
+    rs2::sensor motion;
+    if (rs2_get_sensor(device, "Motion Module", motion) != 0) {
+      RS_FATAL("This RealSense device does not have a [Motion Module]");
+    }
+    motion.set_option(RS2_OPTION_GLOBAL_TIME_ENABLED, true);
+    cfg.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F, accel_hz);
+    cfg.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F, gyro_hz);
   }
 };

@@ -143,6 +143,9 @@ int main(int argc, char *argv[]) {
   });
 
   // Thread functions
+  double target_joint0 = 0.0;
+  double target_joint1 = 0.0;
+  double target_joint2 = 0.0;
   double joint0 = 0.0;
   double joint1 = 0.0;
   double joint2 = 0.0;
@@ -178,10 +181,16 @@ int main(int argc, char *argv[]) {
 
       if ((ts_max - ts_min) * 1e-9 < 0.01 && (ts0 - last_ts) * 1e-9 > 0.01) {
         auto frame0 = frame2cvmat(ir0_frame, fwidth, fheight, CV_8UC1);
+        auto frame1 = frame2cvmat(ir1_frame, fwidth, fheight, CV_8UC1);
         auto frame2 = frame2cvmat(ir2_frame, fwidth, fheight, CV_8UC1);
+        auto frame3 = frame2cvmat(ir3_frame, fwidth, fheight, CV_8UC1);
 
+        cv::Mat frame1_viz;
         cv::Mat frame2_viz;
+        cv::Mat frame3_viz;
+        cv::cvtColor(frame1, frame1_viz, cv::COLOR_GRAY2BGR);
         cv::cvtColor(frame2, frame2_viz, cv::COLOR_GRAY2BGR);
+        cv::cvtColor(frame3, frame3_viz, cv::COLOR_GRAY2BGR);
 
         // Detect AprilGrid
         detect_aprilgrid(detector, ts0, frame0.clone(), grid0);
@@ -207,15 +216,20 @@ int main(int argc, char *argv[]) {
         // SolvePnp
         Eigen::Matrix4d T_C0F;
         auto cam0_params = calib_conf.cam_params[0];
-        auto cam2_params = calib_conf.cam_params[0];
+        auto cam1_params = calib_conf.cam_params[1];
+        auto cam2_params = calib_conf.cam_params[2];
+        auto cam3_params = calib_conf.cam_params[3];
         solvepnp(calib_conf.cam_res, cam0_params, keypoints, points, T_C0F);
 
         // clang-format off
         const auto T_M0L0 = gimbal_joint_transform(joint0);
         const auto T_M1L1 = gimbal_joint_transform(joint1);
         const auto T_M2L2 = gimbal_joint_transform(joint2);
+        const auto T_C1C0 = calib_conf.T_C0C1.inverse();
+        const auto T_C3C2 = calib_conf.T_C2C3.inverse();
         const auto T_C0C2 = T_C0M0 * T_M0L0 * T_L0M1 * T_M1L1 * T_L1M2 * T_M2L2 * T_L2C2;
         const auto T_C2C0 = T_C0C2.inverse();
+        const auto T_C3C0 = T_C3C2 * T_C2C0;
         // clang-format on
 
         // Draw
@@ -225,19 +239,33 @@ int main(int argc, char *argv[]) {
                                       pts[i * 3 + 1],
                                       pts[i * 3 + 2]};
           const Eigen::Vector4d hp_FFi = p_FFi.homogeneous();
+          const Eigen::Vector3d p_C1 = (T_C1C0 * T_C0F * hp_FFi).head(3);
           const Eigen::Vector3d p_C2 = (T_C2C0 * T_C0F * hp_FFi).head(3);
-          Eigen::Vector2d z;
-          pinhole_radtan4_project(calib_conf.cam_res, cam2_params, p_C2, z);
+          const Eigen::Vector3d p_C3 = (T_C3C0 * T_C0F * hp_FFi).head(3);
 
+          Eigen::Vector2d z1;
+          Eigen::Vector2d z2;
+          Eigen::Vector2d z3;
+          pinhole_radtan4_project(calib_conf.cam_res, cam1_params, p_C1, z1);
+          pinhole_radtan4_project(calib_conf.cam_res, cam2_params, p_C2, z2);
+          pinhole_radtan4_project(calib_conf.cam_res, cam3_params, p_C3, z3);
+
+          // clang-format off
           const int marker_size = 2;
           const cv::Scalar color{0, 255, 0};
-          const cv::Point2f p(z.x(), z.y());
-          cv::circle(frame2_viz, p, marker_size, color, -1);
+          cv::circle(frame1_viz, cv::Point2f(z1.x(), z1.y()), marker_size, color, -1);
+          cv::circle(frame2_viz, cv::Point2f(z2.x(), z2.y()), marker_size, color, -1);
+          cv::circle(frame3_viz, cv::Point2f(z3.x(), z3.y()), marker_size, color, -1);
+          // clang-format on
         }
 
         // Visualize
+        cv::Mat viz_row0;
+        cv::Mat viz_row1;
         cv::Mat viz;
-        cv::vconcat(frame2_viz, frame0_viz, viz);
+        cv::hconcat(frame2_viz, frame3_viz, viz_row0);
+        cv::hconcat(frame0_viz, frame1_viz, viz_row1);
+        cv::vconcat(viz_row0, viz_row1, viz);
         cv::imshow("Viz", viz);
         if (cv::waitKey(1) == 'q') {
           printf("Stopping realsense thread...\n");
@@ -267,21 +295,22 @@ int main(int argc, char *argv[]) {
 
     // Loop
     while (realsense_keep_running) {
-      // sbgc_set_angle(&sbgc, target_angle0, target_angle1, target_angle2);
+      sbgc_set_angle(&sbgc, target_joint0, target_joint1, target_joint2);
       sbgc_update(&sbgc);
       joint0 = deg2rad(sbgc.encoder_angles[2]);
       joint1 = deg2rad(sbgc.encoder_angles[0]);
       joint2 = deg2rad(sbgc.encoder_angles[1]);
       usleep(10 * 1000);
     }
-    printf("Stopping SBGC thread...\n");
 
+    // Clean up
+    printf("Stopping SBGC thread...\n");
     sbgc_off(&sbgc);
   };
 
   // Loop
-  std::thread thread0(sbgc_thread);
-  std::thread thread1(realsense_thread);
+  std::thread thread0(realsense_thread);
+  std::thread thread1(sbgc_thread);
   thread0.join();
   thread1.join();
 

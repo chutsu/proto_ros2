@@ -66,7 +66,6 @@ struct CalibConfig {
 
       const Eigen::Vector4d K{p[0], p[1], p[2], p[3]};
       const Eigen::Vector4d D{d[0], d[1], d[2], d[3]};
-
       cam_params[cam_idx] << K, D;
     }
 

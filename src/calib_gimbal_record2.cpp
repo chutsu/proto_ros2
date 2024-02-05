@@ -151,6 +151,8 @@ void save_data(
 }
 
 int main(int argc, char *argv[]) {
+  bool visualize = false;
+
   // Parse device index from command args
   if (argc < 2) {
     printf("calib_gimbal_record2 <save_dir>\n");
@@ -158,6 +160,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   const std::string save_dir{argv[1]};
+  rs2_list_devices();
 
   // Setup
   sbgc_t sbgc;
@@ -222,11 +225,13 @@ int main(int argc, char *argv[]) {
         frame3 = frame2cvmat(ir3_frame, width, height, CV_8UC1);
         last_ts = ts;
 
-        cv::Mat viz;
-        cv::hconcat(frame0, frame2, viz);
-        cv::imshow("Viz", viz);
-        if (cv::waitKey(1) == 'q') {
-          run = false;
+        if (visualize) {
+          cv::Mat viz;
+          cv::hconcat(frame0, frame2, viz);
+          cv::imshow("Viz", viz);
+          if (cv::waitKey(1) == 'q') {
+            run = false;
+          }
         }
       }
     }
@@ -251,8 +256,6 @@ int main(int argc, char *argv[]) {
 
     // Loop
     while (run) {
-      // std::lock_guard<std::mutex> lock(mtx);
-      sbgc_set_angle(&sbgc, target_angle0, target_angle1, target_angle2);
       sbgc_update(&sbgc);
       usleep(10 * 1000);
     }
@@ -268,42 +271,34 @@ int main(int argc, char *argv[]) {
     sbgc_set_angle(&sbgc, 0, 0, 0);
     sleep(3);
 
-    const int num_captures = 300;
-    for (int i = 0; i < num_captures; i++) {
-      // sleep(3);
-      usleep(100 * 1000);
-      printf("Capture! ");
+    // Sample different joint angles
+    const auto range_roll = linspace(-30, 30, 3);
+    const auto range_pitch = linspace(-30, 30, 3);
+    const auto range_yaw = linspace(-30, 30, 3);
+    for (auto roll : range_roll) {
+      for (auto pitch : range_pitch) {
+        for (auto yaw : range_yaw) {
+          sbgc_set_angle(&sbgc, roll, pitch, yaw);
 
-      std::lock_guard<std::mutex> lock(mtx);
-      const auto ts = timestamp_now();
-      const Eigen::Vector3d joints{deg2rad(sbgc.encoder_angles[2]),
-                                   deg2rad(sbgc.encoder_angles[0]),
-                                   deg2rad(sbgc.encoder_angles[1])};
-      images.push_back(
-          {ts, frame0.clone(), frame1.clone(), frame2.clone(), frame3.clone()});
-      joint_angles.push_back({ts, joints});
+          sleep(3);
+          printf("Capture! [%f, %f, %f]\n", roll, pitch, yaw);
+          fflush(stdout);
+
+          sbgc_update(&sbgc);
+          std::lock_guard<std::mutex> lock(mtx);
+          const auto ts = timestamp_now();
+          const Eigen::Vector3d joints{deg2rad(sbgc.encoder_angles[2]),
+                                       deg2rad(sbgc.encoder_angles[0]),
+                                       deg2rad(sbgc.encoder_angles[1])};
+          images.push_back({ts,
+                            frame0.clone(),
+                            frame1.clone(),
+                            frame2.clone(),
+                            frame3.clone()});
+          joint_angles.push_back({ts, joints});
+        }
+      }
     }
-
-    // // Sample different joint angles
-    // const auto range_roll = linspace(-30, 30, 8);
-    // const auto range_pitch = linspace(-30, 30, 8);
-    // const auto range_yaw = linspace(-30, 30, 8);
-    // for (auto roll : range_roll) {
-    //   for (auto pitch : range_pitch) {
-    //     for (auto yaw : range_yaw) {
-    //       sbgc_set_angle(&sbgc, roll, pitch, yaw);
-
-    //       sleep(3);
-    //       printf("Capture! ");
-    //       fflush(stdout);
-
-    //       sbgc_update(&sbgc);
-    //       std::lock_guard<std::mutex> lock(mtx);
-    //       const auto ts = timestamp_now();
-    //       record(ts, &sbgc, frame0, frame1, images, joint_angles);
-    //     }
-    //   }
-    // }
 
     // Stop other threads
     run = false;

@@ -89,7 +89,7 @@ COLCON_WS=~/colcon_ws
 #   cd $COLCON_WS \
 #   && colcon build --packages-select proto_ros2 \
 #   && source install/setup.bash \
-#   && ros2 run proto_ros2 calib_gimbal_inspect2 /data/gimbal_experiments/calib/calib_gimbal/calib_gimbal-results.yaml
+#   && ros2 run proto_ros2 calib_gimbal_inspect2 /home/chutsu/calib_gimbal/calib_gimbal-results.yaml
 # " C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m
@@ -135,16 +135,16 @@ COLCON_WS=~/colcon_ws
 #   && ros2 run proto_ros2 rs_multicam_node
 # " C-m C-m
 
-# tmux send-keys -t dev -R C-l C-m
-# tmux send-keys -t dev -R "\
-# cd ~/proto_ws \
-#   && source /opt/ros/humble/setup.bash \
-#   && colcon build --packages-select proto_ros2 \
-#   && colcon build --packages-select okvis \
-#     --cmake-args -DCMAKE_BUILD_TYPE=Release -DUSE_NN=OFF -DBUILD_SUPEREIGHT2_APP=OFF -DBUILD_ROS2=ON \
-#   && source install/setup.bash  \
-#   && ros2 launch proto_ros2 gimbal_experiments.py
-# " C-m C-m
+tmux send-keys -t dev -R C-l C-m
+tmux send-keys -t dev -R "\
+cd ~/colcon_ws \
+  && source /opt/ros/humble/setup.bash \
+  && colcon build --packages-select proto_ros2 \
+  && colcon build --packages-select okvis \
+    --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_NN=OFF -DBUILD_SUPEREIGHT2_APP=OFF -DBUILD_ROS2=ON \
+  && source install/setup.bash  \
+  && ros2 launch proto_ros2 gimbal_experiments.launch.py
+" C-m C-m
 
 # python3 scripts/okvis_calib_converter.py
 # python3 scripts/plot_poses.py --data_file=/data/gimbal_experiments/odom_fixed/okvis/data.csv

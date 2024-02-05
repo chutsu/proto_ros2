@@ -14,9 +14,11 @@ def generate_launch_description():
   config_path = f"{config_dir}/realsense_d435i.yaml"
   okvis_params = [{"config_path": config_path}]
   okvis_node = Node(package="okvis",
-                    executable="okvis_realsense_d435i_node",
-                    name="okvis_node",
-                    parameters=okvis_params)
+                    executable="okvis_gimbal_node",
+                    name="okvis_gimbal_node",
+                    parameters=okvis_params,
+                    # prefix=["gdb -ex=r -ex bt --args"],
+                    output="screen")
 
   sbgc_node = Node(package="proto_ros2",
                    executable="sbgc_node",

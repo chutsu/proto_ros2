@@ -78,8 +78,8 @@ int main(int argc, char *argv[]) {
   const auto node = rclcpp::Node::make_shared("rs_multicam_node", options);
   const std::string topic_ir0 = "/rs/ir0/image";
   const std::string topic_ir1 = "/rs/ir1/image";
-  const std::string topic_ir2 = "/rs1/ir2/image";
-  const std::string topic_ir3 = "/rs1/ir3/image";
+  const std::string topic_ir2 = "/rs/ir2/image";
+  const std::string topic_ir3 = "/rs/ir3/image";
   const std::string topic_acc0 = "/rs/acc0/raw";
   const std::string topic_gyr0 = "/rs/gyr0/raw";
   const std::string topic_imu0 = "/rs/imu0/data";

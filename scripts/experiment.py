@@ -2,6 +2,7 @@
 import os
 from os.path import join
 import sys
+import glob
 
 import proto
 import pandas
@@ -144,7 +145,6 @@ def align(model, data):
 
 def eval_traj(gnd_file, est_file, **kwargs):
   verbose = kwargs.get("verbose", False)
-  plot = kwargs.get("plot", False)
 
   # Read files and associate them
   gnd_data = load_pose_data(gnd_file, False)
@@ -167,17 +167,8 @@ def eval_traj(gnd_file, est_file, **kwargs):
   # Align both estimates and ground-truth
   rot, transGT, trans_errorGT, trans, trans_error, scale, model_aligned = align(
       est_mat, gnd_mat)
-
-  if plot:
-    gnd = np.array(gnd_mat)
-    est = np.array(model_aligned)
-    plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
-    plt.plot(est[0, :], est[1, :], "r-", label="Estimate")
-    plt.legend(loc=0)
-    plt.axis("equal")
-    plt.xlabel("x [m]")
-    plt.ylabel("y [m]")
-    plt.show()
+  gnd = np.array(gnd_mat)
+  est = np.array(model_aligned)
 
   # Calculate errors
   metrics = {
@@ -200,13 +191,91 @@ def eval_traj(gnd_file, est_file, **kwargs):
     print("ATE.min %f m" % metrics["ate"]["min"])
     print("ATE.max %f m" % metrics["ate"]["max"])
 
-  return metrics
+  return metrics, gnd, est
+
+
+def run_okvis(config_file, data_dir):
+  cmd = []
+  cmd.append("cd ~/colcon_ws/build/okvis")
+  cmd.append(f"./okvis_app_synchronous {config_file} {data_dir}")
+  cmd = " && ".join(cmd)
+  os.system(cmd)
+
+
+def eval_dataset(config_file, data_dir):
+  run0_path = "/tmp/run0"
+  run1_path = "/tmp/run1"
+
+  # Write images data.csv
+  for idx in range(4):
+    cam_idx = f"cam{idx}"
+    csv_file = join(data_dir, cam_idx, "data.csv")
+    # if os.path.exists(csv_file):
+    #   continue
+
+    csv = open(csv_file, "w")
+    csv.write("ts, filename\n")
+    timestamps = []
+    for img_path in sorted(glob.glob(join(data_dir, cam_idx, "data", "*.png")))[10:]:
+      fname = os.path.basename(img_path)
+      ts = fname.split(".")[0]
+      timestamps.append(float(ts) * 1e-9)
+      csv.write(f"{ts},{fname}\n")
+    csv.close()
+
+    timestamps = np.array(timestamps)
+    np.diff(timestamps)
+
+  # Run OKVIS on cam0 cam1 imu0
+  os.system(f"rm -rf {run0_path}")
+  os.system(f"mkdir -p {run0_path}")
+  os.system(f"cp -r {data_dir}/cam0 {run0_path}")
+  os.system(f"cp -r {data_dir}/cam1 {run0_path}")
+  os.system(f"cp -r {data_dir}/imu0 {run0_path}")
+  run_okvis(config_file, run0_path)
+  os.system(f"mv {run0_path}/okvis2-vio_trajectory.csv {data_dir}/rs0-okvis_vio.csv")
+
+  # Run OKVIS on cam2 cam3 imu1
+  os.system(f"rm -rf {run1_path}")
+  os.system(f"mkdir -p {run1_path}")
+  os.system(f"cp -r {data_dir}/cam2 {run1_path}")
+  os.system(f"cp -r {data_dir}/cam3 {run1_path}")
+  os.system(f"cp -r {data_dir}/imu1 {run1_path}")
+  os.system(f"mv {run1_path}/cam2 {run1_path}/cam0")
+  os.system(f"mv {run1_path}/cam3 {run1_path}/cam1")
+  os.system(f"mv {run1_path}/imu1 {run1_path}/imu0")
+  run_okvis(config_file, run1_path)
+  os.system(f"mv {run1_path}/okvis2-vio_trajectory.csv {data_dir}/rs1-okvis_vio.csv")
 
 
 if __name__ == "__main__":
-  data_dir = "/data/gimbal_experiments/exp-circle-0"
+  # data_dir = "/data/gimbal_experiments/exp-circle-0"
+  # data_dir = "/data/gimbal_experiments/exp-circle-1"
+  # data_dir = "/data/gimbal_experiments/exp-figure8-0"
+  # data_dir = "/data/gimbal_experiments/exp-figure8-1"
+  # data_dir = "/data/gimbal_experiments/exp-noisy-0"
+  data_dir = "/data/gimbal_experiments/exp-noisy-1"
+  config_file = "/data/gimbal_experiments/realsense_d435i.yaml"
 
-  # # Plot mocap vs vio estimate
-  # mocap_file = join(data_dir, "mocap.csv")
-  # vio_file = join(data_dir, "okvis_poses.csv")
-  # eval_traj(mocap_file, vio_file, verbose=True, plot=True)
+  # Evaluate dataset
+  eval_dataset(config_file, data_dir)
+
+  # Plot mocap vs vio estimate
+  mocap_file = join(data_dir, "mocap.csv")
+  rs0_file = join(data_dir, "rs0-okvis_vio.csv")
+  rs1_file = join(data_dir, "rs1-okvis_vio.csv")
+  metrics0, gnd, est0 = eval_traj(mocap_file, rs0_file, verbose=True)
+  metrics1, gnd, est1 = eval_traj(mocap_file, rs1_file, verbose=True)
+
+  import pprint
+  pprint.pprint(metrics0)
+  pprint.pprint(metrics1)
+
+  plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
+  plt.plot(est0[0, :], est0[1, :], "r-", label="Static Camera")
+  plt.plot(est1[0, :], est1[1, :], "b-", label="Dynamic Camera")
+  plt.legend(loc=0)
+  plt.axis("equal")
+  plt.xlabel("x [m]")
+  plt.ylabel("y [m]")
+  plt.show()

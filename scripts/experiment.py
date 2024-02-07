@@ -248,6 +248,52 @@ def eval_dataset(config_file, data_dir):
   os.system(f"mv {run1_path}/okvis2-vio_trajectory.csv {data_dir}/rs1-okvis_vio.csv")
 
 
+def plot_results(gnd, est0, est1):
+  # Plot Ground-Truth and Static Camera
+  plt.subplot(121)
+  plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
+  plt.plot(est0[0, :], est0[1, :], "r-", label="Static Camera")
+
+  min_x = np.min(gnd[0, :])
+  min_y = np.min(gnd[1, :])
+  max_y = np.max(gnd[1, :])
+  step_y = (max_y - min_y) * 0.035
+  plt.text(min_x, min_y - step_y * 0, f"RMSE:    {metrics0['ate']['rmse']:.4f}m")
+  plt.text(min_x, min_y - step_y * 1, f"Mean:    {metrics0['ate']['mean']:.4f}m")
+  plt.text(min_x, min_y - step_y * 2, f"Median: {metrics0['ate']['median']:.4f}m")
+  plt.text(min_x, min_y - step_y * 3, f"Stddev:  {metrics0['ate']['std']:.4f}m")
+  plt.text(min_x, min_y - step_y * 4, f"Min:       {metrics0['ate']['min']:.4f}m")
+  plt.text(min_x, min_y - step_y * 5, f"Max:      {metrics0['ate']['max']:.4f}m")
+
+  plt.legend(loc=0)
+  plt.axis("equal")
+  plt.xlabel("x [m]")
+  plt.ylabel("y [m]")
+
+  # Plot Ground-Truth and Gimbal Camera
+  plt.subplot(122)
+  plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
+  plt.plot(est1[0, :], est1[1, :], "b-", label="Dynamic Camera")
+
+  min_x = np.min(gnd[0, :])
+  min_y = np.min(gnd[1, :])
+  max_y = np.max(gnd[1, :])
+  step_y = (max_y - min_y) * 0.035
+  plt.text(min_x, min_y - step_y * 0, f"RMSE:    {metrics1['ate']['rmse']:.4f}m")
+  plt.text(min_x, min_y - step_y * 1, f"Mean:    {metrics1['ate']['mean']:.4f}m")
+  plt.text(min_x, min_y - step_y * 2, f"Median: {metrics1['ate']['median']:.4f}m")
+  plt.text(min_x, min_y - step_y * 3, f"Stddev:  {metrics1['ate']['std']:.4f}m")
+  plt.text(min_x, min_y - step_y * 4, f"Min:       {metrics1['ate']['min']:.4f}m")
+  plt.text(min_x, min_y - step_y * 5, f"Max:      {metrics1['ate']['max']:.4f}m")
+
+  plt.legend(loc=0)
+  plt.axis("equal")
+  plt.xlabel("x [m]")
+  plt.ylabel("y [m]")
+
+  plt.show()
+
+
 if __name__ == "__main__":
   # data_dir = "/data/gimbal_experiments/exp-circle-0"
   # data_dir = "/data/gimbal_experiments/exp-circle-1"
@@ -258,24 +304,14 @@ if __name__ == "__main__":
   config_file = "/data/gimbal_experiments/realsense_d435i.yaml"
 
   # Evaluate dataset
-  eval_dataset(config_file, data_dir)
+  # eval_dataset(config_file, data_dir)
 
-  # Plot mocap vs vio estimate
+  # Evaluate mocap vs vio estimate
   mocap_file = join(data_dir, "mocap.csv")
   rs0_file = join(data_dir, "rs0-okvis_vio.csv")
   rs1_file = join(data_dir, "rs1-okvis_vio.csv")
   metrics0, gnd, est0 = eval_traj(mocap_file, rs0_file, verbose=True)
   metrics1, gnd, est1 = eval_traj(mocap_file, rs1_file, verbose=True)
 
-  import pprint
-  pprint.pprint(metrics0)
-  pprint.pprint(metrics1)
-
-  plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
-  plt.plot(est0[0, :], est0[1, :], "r-", label="Static Camera")
-  plt.plot(est1[0, :], est1[1, :], "b-", label="Dynamic Camera")
-  plt.legend(loc=0)
-  plt.axis("equal")
-  plt.xlabel("x [m]")
-  plt.ylabel("y [m]")
-  plt.show()
+  # Plot results
+  plot_results(gnd, est0, est1)

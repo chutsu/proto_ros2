@@ -5,7 +5,6 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-  rs_node = Node(package="proto_ros2", executable="rs_node", name="rs_node")
   vicon_node = Node(package="ros2_vicon",
                     executable="vicon_node",
                     name="vicon_node",
@@ -13,5 +12,6 @@ def generate_launch_description():
                         {
                             "hostname": "10.0.5.127"
                         },
+                    output="screen",
                     ])
-  return launch.LaunchDescription([rs_node, vicon_node])
+  return launch.LaunchDescription([vicon_node])

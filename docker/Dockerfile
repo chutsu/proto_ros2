@@ -47,6 +47,5 @@ RUN source /opt/ros/humble/setup.bash && colcon build
 
 # Entry point script
 WORKDIR $HOME
-USER $USER
 COPY entry.sh /
 ENTRYPOINT ["/entry.sh"]

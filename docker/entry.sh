@@ -2,8 +2,9 @@
 set -e
 source /opt/ros/humble/setup.bash
 
-# Build proto_ros2
-# cd proto_ros2 && make build
+# Start Micro-XRCE Agent
+MicroXRCEAgent udp4 -p 8888 &
 
 # Start an interactive shell
 /bin/bash
+cd $HOME

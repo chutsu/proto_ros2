@@ -1,8 +1,18 @@
 #!/bin/bash
 set -e
 COLCON_WS=~/colcon_ws
+source $COLCON_WS/install/setup.bash
 
-python3 scripts/experiment.py
+# python3 scripts/experiment.py
+python3 src/mav_node.py
+
+
+# tmux send-keys -t dev -R C-l C-m
+# tmux send-keys -t dev -R "cd $COLCON_WS \
+#   && colcon build --packages-select proto_ros2  \
+#   && source install/setup.bash \
+#   && ros2 run proto_ros2 mav_node.py
+# " C-m C-m
 
 # tmux send-keys -t dev -R C-l C-m
 # tmux send-keys -t dev -R "\

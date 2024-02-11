@@ -36,7 +36,6 @@ LINK_DIRECTORIES(/opt/yac/lib)
 LINK_DIRECTORIES(/opt/proto/lib)
 LINK_DIRECTORIES(/usr/local/lib)
 
-
 # EXPORT DEPENDENCIES
 AMENT_EXPORT_DEPENDENCIES(
   ament_cmake
@@ -152,7 +151,7 @@ INSTALL(TARGETS calib_multi_rs_record DESTINATION lib/${PROJECT_NAME})
 
 # -- MAV Node
 ADD_EXECUTABLE(mav_node src/mav_node.cpp)
-AMENT_TARGET_DEPENDENCIES(mav_node rclcpp px4_msgs)
+AMENT_TARGET_DEPENDENCIES(mav_node rclcpp geometry_msgs px4_msgs)
 TARGET_LINK_LIBRARIES(mav_node ${OpenCV_LIBS})
 INSTALL(TARGETS mav_node DESTINATION lib/${PROJECT_NAME})
 

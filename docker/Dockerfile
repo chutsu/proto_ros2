@@ -56,7 +56,10 @@ USER $USER
 WORKDIR $HOME
 RUN git clone https://github.com/chutsu/dotfiles.git \
   && cd dotfiles \
-  && make dotfiles
+  && make init \
+  && make gitconfig \
+  && make nvim \
+  && make vifm
 
 # Entry point script
 WORKDIR $HOME

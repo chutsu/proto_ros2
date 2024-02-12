@@ -61,43 +61,93 @@ class PID:
 
 class MavVelocityControl:
   def __init__(self):
+    self.period = 0.0055  # [s]
     self.dt = 0
     self.pid_vx = PID(0.5, 0.0, 0.05)
     self.pid_vy = PID(0.5, 0.0, 0.05)
     self.pid_vz = PID(0.5, 0.0, 0.05)
+    self.hover_thrust = 0.7
+    self.u = [0.0, 0.0, 0.0, 0.0]  # roll, pitch, yaw, thrust
+
+  def update(self, sp, pv, dt):
+    """ Update """
+    # Check rate
+    self.dt += dt
+    if self.dt < self.period:
+      return self.u  # Return previous command
+
+    # Transform errors in world frame to mav frame
+    errors_W = np.array([sp[0] - pv[0], sp[1] - pv[1], sp[2] - pv[2]])
+    C_WB = proto.euler321(pv[3], 0.0, 0.0)
+    errors = C_WB.T @ errors_W
+
+    # Roll, pitch, yaw and thrust
+    r = -self.pid_vy.update(errors[1], 0.0, dt)
+    p = self.pid_vx.update(errors[0], 0.0, dt)
+    y = sp[3]
+    t = self.hover_thrust + self.pid_vz.update(errors[2], 0.0, dt)
+
+    # Clip values
+    self.u[0] = proto.clip_value(r, deg2rad(-20.0), deg2rad(20.0))
+    self.u[1] = proto.clip_value(p, deg2rad(-20.0), deg2rad(20.0))
+    self.u[2] = y
+    self.u[3] = proto.clip_value(t, 0.0, 1.0)
+
+    # Reset dt
+    self.dt = 0.0
+
+    return self.u
+
+  def reset(self):
+    """ Reset """
+    self.dt = 0.0
+    self.pid_vx.reset()
+    self.pid_vy.reset()
+    self.pid_vz.reset()
+    self.u = [0.0, 0.0, 0.0, 0.0]
+
+
+class MavPositionControl:
+  def __init__(self):
+    self.period = 0.011
+    self.vx_min = -2.5
+    self.vx_max = 2.5
+    self.vy_min = -2.5
+    self.vy_max = 2.5
+    self.vz_min = -2.5
+    self.vz_max = 2.5
+
+    self.dt = 0
+    self.pid_x = PID(0.5, 0.0, 0.05)
+    self.pid_y = PID(0.5, 0.0, 0.05)
+    self.pid_z = PID(1.0, 0.0, 0.1)
     self.u = [0.0, 0.0, 0.0, 0.0]
 
   def update(self, sp, pv, dt):
     """ Update """
     # Check rate
     self.dt += dt
-    if self.dt < 0.0055:
+    if self.dt < self.period:
       return self.u  # Return previous command
 
     # Calculate RPY errors relative to quadrotor by incorporating yaw
-    errors_W = np.array([sp[0] - pv[0], sp[1] - pv[1], sp[2] - pv[2]])
-    C_WS = proto.euler321(pv[3], 0.0, 0.0)
-    errors = C_WS.T @ errors_W
+    errors_W = [sp[0] - pv[0], sp[1] - pv[1], sp[2] - pv[2]]
+    C_WB = proto.euler321(pv[3], 0.0, 0.0)
+    errors = C_WB.T @ errors_W
 
-    # Roll, pitch, yaw and thrust
-    r = -self.pid_vy.update(errors[1], 0.0, dt)
-    p = self.pid_vx.update(errors[0], 0.0, dt)
-    y = sp[3]
-    t = 0.7 + self.pid_vz.update(errors[2], 0.0, dt)
+    # Velocity commands
+    vx = self.pid_x.update(errors[0], 0.0, self.dt)
+    vy = self.pid_y.update(errors[1], 0.0, self.dt)
+    vz = self.pid_z.update(errors[2], 0.0, self.dt)
+    yaw = sp[3]
 
-    self.u[0] = proto.clip_value(r, deg2rad(-20.0), deg2rad(20.0))
-    self.u[1] = proto.clip_value(p, deg2rad(-20.0), deg2rad(20.0))
-    self.u[2] = y
-    self.u[3] = proto.clip_value(t, 0.0, 1.0)
+    self.u[0] = proto.clip_value(vx, self.vx_min, self.vx_max)
+    self.u[1] = proto.clip_value(vy, self.vy_min, self.vy_max)
+    self.u[2] = proto.clip_value(vz, self.vz_min, self.vz_max)
+    self.u[3] = yaw
 
-    # # Yaw first if threshold reached
-    # if (fabs(sp[3] - pv[3]) > deg2rad(2)) {
-    #   outputs[0] = 0.0;
-    #   outputs[1] = 0.0;
-    # }
-
-    # Keep track of control action
-    self.dt = 0.0  # Reset dt
+    # Reset dt
+    self.dt = 0.0
 
     return self.u
 
@@ -151,7 +201,7 @@ class MavNode(Node):
     self.vel_ctrl = MavVelocityControl()
 
     # Create a timer to publish control commands
-    self.dt =  0.005
+    self.dt = 0.005
     self.timer = self.create_timer(self.dt, self.timer_cb)
 
   def pos_cb(self, vehicle_local_position):

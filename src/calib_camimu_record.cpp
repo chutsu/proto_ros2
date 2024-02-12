@@ -142,19 +142,20 @@ int main(int argc, char *argv[]) {
     const int width = ir0.get_width();
     const int height = ir0.get_height();
     const std::string encoding = "mono8";
+    const uint64_t ts = vframe2ts(ir0, false);
     frame0 = frame2cvmat(ir0, width, height, CV_8UC1);
     frame1 = frame2cvmat(ir1, width, height, CV_8UC1);
     if (frame0.empty() || frame1.empty()) {
       return;
     }
-    image_data.push_back({time_now(), frame0.clone(), frame1.clone()});
+    image_data.push_back({ts, frame0.clone(), frame1.clone()});
 
-    // cv::Mat viz;
-    // cv::hconcat(frame0, frame1, viz);
-    // cv::imshow("Viz", viz);
-    // if (cv::waitKey(1) == 'q') {
-    //   realsense_keep_running = false;
-    // }
+    cv::Mat viz;
+    cv::hconcat(frame0, frame1, viz);
+    cv::imshow("Viz", viz);
+    if (cv::waitKey(1) == 'q') {
+      realsense_keep_running = false;
+    }
   };
 
   device.accel_callback = [&](const rs2::motion_frame &mf) {

@@ -171,13 +171,22 @@ int main(int argc, char *argv[]) {
 
     int64_t last_ts = 0;
     while (realsense_keep_running) {
-      const auto ts0 = vframe2ts(ir0_frame, true);
-      const auto ts1 = vframe2ts(ir1_frame, true);
-      const auto ts2 = vframe2ts(ir2_frame, true);
-      const auto ts3 = vframe2ts(ir3_frame, true);
+      const auto ts0 = vframe2ts(ir0_frame, false);
+      const auto ts1 = vframe2ts(ir1_frame, false);
+      const auto ts2 = vframe2ts(ir2_frame, false);
+      const auto ts3 = vframe2ts(ir3_frame, false);
       const std::vector<uint64_t> tss = {ts0, ts1, ts2, ts3};
       const auto ts_max = *std::max_element(tss.begin(), tss.end());
       const auto ts_min = *std::min_element(tss.begin(), tss.end());
+      const auto ts_diff = (ts_max - ts_min) * 1e-9;
+
+      printf("ts_diff: %f\n", ts_diff);
+      printf("ts0: %ld\n", ts0);
+      printf("ts1: %ld\n", ts1);
+      printf("ts2: %ld\n", ts2);
+      printf("ts3: %ld\n", ts3);
+      printf("\n");
+      fflush(stdout);
 
       if ((ts_max - ts_min) * 1e-9 < 0.01 && (ts0 - last_ts) * 1e-9 > 0.01) {
         auto frame0 = frame2cvmat(ir0_frame, fwidth, fheight, CV_8UC1);
@@ -210,6 +219,8 @@ int main(int argc, char *argv[]) {
           points.emplace_back(pts[3 * i + 0], pts[3 * i + 1], pts[3 * i + 2]);
         }
         if (keypoints.size() < 10) {
+          printf("Too few keypoints\n");
+          fflush(stdout);
           continue;
         }
 

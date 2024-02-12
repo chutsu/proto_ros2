@@ -207,10 +207,10 @@ int main(int argc, char *argv[]) {
     int64_t last_ts = 0;
     while (run) {
       std::lock_guard<std::mutex> lock(mtx);
-      const auto ts0 = vframe2ts(ir0_frame, true);
-      const auto ts1 = vframe2ts(ir1_frame, true);
-      const auto ts2 = vframe2ts(ir2_frame, true);
-      const auto ts3 = vframe2ts(ir3_frame, true);
+      const auto ts0 = vframe2ts(ir0_frame, false);
+      const auto ts1 = vframe2ts(ir1_frame, false);
+      const auto ts2 = vframe2ts(ir2_frame, false);
+      const auto ts3 = vframe2ts(ir3_frame, false);
       const std::vector<uint64_t> tss = {ts0, ts1, ts2, ts3};
       const auto ts_max = *std::max_element(tss.begin(), tss.end());
       const auto ts_min = *std::min_element(tss.begin(), tss.end());

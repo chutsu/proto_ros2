@@ -35,7 +35,7 @@ from px4_msgs.msg import VehicleStatus
 
 class MavVelocityControl:
   def __init__(self):
-    self.period = 0.0055  # [s]
+    self.period = 0.0049  # [s]
     self.dt = 0
     self.pid_vx = PID(1.0, 0.0, 0.05)
     self.pid_vy = PID(1.0, 0.0, 0.05)
@@ -82,20 +82,39 @@ class MavVelocityControl:
 
 
 class MavPositionControl:
-  def __init__(self):
-    self.period = 0.0055
-    self.vx_min = -5.0
-    self.vx_max = 5.0
-    self.vy_min = -5.0
-    self.vy_max = 5.0
-    self.vz_min = -5.0
-    self.vz_max = 5.0
-
+  def __init__(self, output_mode="VELOCITY"):
+    self.output_mode = output_mode
     self.dt = 0
-    self.pid_x = PID(0.5, 0.0, 0.05)
-    self.pid_y = PID(0.5, 0.0, 0.05)
-    self.pid_z = PID(0.5, 0.0, 0.05)
     self.u = [0.0, 0.0, 0.0, 0.0]
+
+    if self.output_mode == "VELOCITY":
+      self.period = 0.0055
+      self.vx_min = -5.0
+      self.vx_max = 5.0
+      self.vy_min = -5.0
+      self.vy_max = 5.0
+      self.vz_min = -5.0
+      self.vz_max = 5.0
+
+      self.dt = 0
+      self.pid_x = PID(0.5, 0.0, 0.05)
+      self.pid_y = PID(0.5, 0.0, 0.05)
+      self.pid_z = PID(0.5, 0.0, 0.05)
+
+    elif self.output_mode == "ATTITUDE":
+      self.period = 0.0049
+      self.roll_min = deg2rad(-35.0)
+      self.roll_max = deg2rad(35.0)
+      self.pitch_min = deg2rad(-35.0)
+      self.pitch_max = deg2rad(35.0)
+      self.hover_thrust = 0.3
+
+      self.pid_x = PID(1.0, 0.0, 0.1)
+      self.pid_y = PID(1.0, 0.0, 0.1)
+      self.pid_z = PID(0.1, 0.0, 0.0)
+
+    else:
+      raise NotImplementedError()
 
   def update(self, sp, pv, dt):
     """ Update """
@@ -104,19 +123,38 @@ class MavPositionControl:
     if self.dt < self.period:
       return self.u  # Return previous command
 
-    # Calculate velocity errors in world frame
-    errors = np.array([sp[0] - pv[0], sp[1] - pv[1], sp[2] - pv[2]])
+    if self.output_mode == "VELOCITY":
+      # Calculate velocity errors in world frame
+      errors = np.array([sp[0] - pv[0], sp[1] - pv[1], sp[2] - pv[2]])
 
-    # Velocity commands
-    vx = self.pid_x.update(errors[0], 0.0, self.dt)
-    vy = self.pid_y.update(errors[1], 0.0, self.dt)
-    vz = self.pid_z.update(errors[2], 0.0, self.dt)
-    yaw = sp[3]
+      # Velocity commands
+      vx = self.pid_x.update(errors[0], 0.0, self.dt)
+      vy = self.pid_y.update(errors[1], 0.0, self.dt)
+      vz = self.pid_z.update(errors[2], 0.0, self.dt)
+      yaw = sp[3]
 
-    self.u[0] = proto.clip_value(vx, self.vx_min, self.vx_max)
-    self.u[1] = proto.clip_value(vy, self.vy_min, self.vy_max)
-    self.u[2] = proto.clip_value(vz, self.vz_min, self.vz_max)
-    self.u[3] = yaw
+      self.u[0] = proto.clip_value(vx, self.vx_min, self.vx_max)
+      self.u[1] = proto.clip_value(vy, self.vy_min, self.vy_max)
+      self.u[2] = proto.clip_value(vz, self.vz_min, self.vz_max)
+      self.u[3] = yaw
+
+    elif self.output_mode == "ATTITUDE":
+      # Calculate position errors in mav frame
+      errors = euler321(pv[3], 0.0, 0.0).T @ (sp[0:3] - pv[0:3])
+
+      # Attitude commands
+      roll = -self.pid_y.update(errors[1], 0.0, dt)
+      pitch = self.pid_x.update(errors[0], 0.0, dt)
+      thrust = self.pid_z.update(errors[2], 0.0, dt)
+
+      # Attitude command (roll, pitch, yaw, thrust)
+      self.u[0] = proto.clip_value(roll, self.roll_min, self.roll_max)
+      self.u[1] = proto.clip_value(pitch, self.pitch_min, self.pitch_max)
+      self.u[2] = sp[3]
+      self.u[3] = proto.clip_value(thrust, 0.0, 1.0)
+
+    else:
+      raise NotImplementedError()
 
     # Reset dt
     self.dt = 0.0
@@ -143,6 +181,11 @@ class MavTrajectoryControl:
     self.f = 1.0 / self.T
     self.delta = kwargs.get("delta", np.pi)
 
+    # Position and velocity controller
+    self.last_ts = None
+    self.pos_ctrl = MavPositionControl("ATTITUDE")
+    self.vel_ctrl = MavVelocityControl()
+
   def get_traj(self):
     """ Return trajectory """
     pos_data = np.zeros((3, 1000))
@@ -153,9 +196,16 @@ class MavTrajectoryControl:
 
   def get_position(self, t):
     """ Get position """
-    x = self.A * np.sin(self.a * 2.0 * np.pi * self.f * t + self.delta)
-    y = self.B * np.sin(self.b * 2.0 * np.pi * self.f * t)
+    w = 2.0 * np.pi * self.f
+    theta = np.sin(0.25 * w * t)**2
+
+    ka = 2.0 * np.pi * self.a
+    kb = 2.0 * np.pi * self.b
+
+    x = self.A * np.sin(ka * theta + self.delta)
+    y = self.B * np.sin(kb * theta)
     z = self.z
+
     return np.array([x, y, z])
 
   def get_yaw(self, t):
@@ -173,12 +223,61 @@ class MavTrajectoryControl:
     return heading
 
   def get_velocity(self, t):
-    ka = 2.0 * np.pi * self.a * self.f
-    kb = 2.0 * np.pi * self.b * self.f
-    vx = ka * self.A * np.cos(ka * t + self.delta)
-    vy = kb * self.B * np.cos(kb * t)
+    w = 2.0 * np.pi * self.f
+    theta = np.sin(0.25 * w * t)**2
+
+    ka = 2.0 * np.pi * self.a
+    kb = 2.0 * np.pi * self.b
+    kpift = 0.5 * np.pi * self.f * t
+    kx = 2.0 * np.pi**2 * self.A * self.a * self.f
+    ky = 2.0 * np.pi**2 * self.B * self.b * self.f
+    ksincos = np.sin(kpift) * np.cos(kpift)
+
+    vx = kx * ksincos * np.cos(ka * np.sin(kpift)**2 + self.delta)
+    vy = ky * ksincos * np.cos(kb * np.sin(kpift)**2)
     vz = 0.0
+
     return np.array([vx, vy, vz])
+
+  def update(self, t, pos_pv, vel_pv):
+    # Pre-check
+    if self.last_ts is None:
+      self.last_ts = t
+      return np.array([0.0, 0.0, 0.0, 0.0])
+    # dt = t - self.last_ts
+    dt = 0.005
+
+    # Get trajectory position, velocity and yaw
+    traj_pos = self.get_position(t)
+    traj_vel = self.get_velocity(t)
+    traj_yaw = self.get_yaw(t)
+
+    # Form position and velocity setpoints
+    pos_sp = np.array([traj_pos[0], traj_pos[1], traj_pos[2], traj_yaw])
+    vel_sp = [traj_vel[0], traj_vel[1], traj_vel[2], traj_yaw]
+
+    # Position control
+    att_pos_sp = self.pos_ctrl.update(pos_sp, pos_pv, dt)
+
+    # Velocity control
+    att_vel_sp = self.vel_ctrl.update(vel_sp, vel_pv, dt)
+
+    # Mix both position and velocity control into a single attitude setpoint
+    att_sp = np.array([0.0, 0.0, 0.0, 0.0])
+    att_sp[0] = att_vel_sp[0] + att_pos_sp[0]
+    att_sp[1] = att_vel_sp[1] + att_pos_sp[1]
+    att_sp[2] = traj_yaw
+    att_sp[3] = att_vel_sp[3] + att_pos_sp[3]
+
+    att_sp[0] = proto.clip_value(att_sp[0], deg2rad(-35.0), deg2rad(35.0))
+    att_sp[1] = proto.clip_value(att_sp[1], deg2rad(-35.0), deg2rad(35.0))
+    att_sp[2] = att_sp[2]
+    att_sp[3] = proto.clip_value(att_sp[3], 0.0, 1.0)
+
+    # Update
+    self.last_ts = t
+
+    return att_sp
 
   def plot_traj(self):
     """ Plot """
@@ -257,7 +356,7 @@ class MavNode(Node):
 
     # State
     self.vehicle_local_position = LocalPosition()
-    self.vehicle_status = VehicleStatus()
+    self.status = VehicleStatus()
     self.mode = MavMode.GO_TO_START
     self.ts = None
     self.pos = None
@@ -268,13 +367,16 @@ class MavNode(Node):
 
     # Settings
     self.takeoff_height = 2.0
-    self.traj_period = 15.0
+    self.traj_period = 30.0
     self.hover_for = 3.0
 
     # Control
     self.pos_ctrl = MavPositionControl()
     self.vel_ctrl = MavVelocityControl()
-    self.traj_ctrl = MavTrajectoryControl(z=self.takeoff_height,
+    self.traj_ctrl = MavTrajectoryControl(a=2,
+                                          b=2,
+                                          delta=np.pi/2,
+                                          z=self.takeoff_height,
                                           T=self.traj_period)
 
     x0, y0, z0 = self.traj_ctrl.get_position(0.0)
@@ -290,6 +392,10 @@ class MavNode(Node):
     # Engage offboard and arm MAV
     self.engage_offboard_mode()
     self.arm()
+
+    # Data
+    self.pos_time = []
+    self.pos_hist = []
 
   def pos_cb(self, msg):
     """Callback function for msg topic subscriber."""
@@ -324,7 +430,7 @@ class MavNode(Node):
 
   def status_cb(self, vehicle_status):
     """Callback function for vehicle_status topic subscriber."""
-    self.vehicle_status = vehicle_status
+    self.status = vehicle_status
 
   def arm(self):
     """Send an arm command to the vehicle."""
@@ -367,9 +473,9 @@ class MavNode(Node):
 
   def pub_attitude_sp(self, roll, pitch, yaw, thrust):
     yaw_sp = deg2rad(90.0) - yaw
-    if yaw_sp > np.pi:
+    if yaw_sp >= np.pi:
       yaw_sp -= 2.0 * np.pi
-    elif yaw_sp < -np.pi:
+    elif yaw_sp <= -np.pi:
       yaw_sp += 2.0 * np.pi
 
     qw, qx, qy, qz = quat_normalize(euler2quat(yaw_sp, -pitch, roll)).tolist()
@@ -434,29 +540,37 @@ class MavNode(Node):
       if self.traj_start is None:
         self.traj_start = self.ts
 
+      # Update trajectory controller
       t = float(self.ts - self.traj_start) * 1e-9
-      vel_traj = self.traj_ctrl.get_velocity(t)
-      yaw_traj = self.traj_ctrl.get_yaw(t)
-      vel_sp = [vel_traj[0], vel_traj[1], vel_traj[2], yaw_traj]
-      u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
+      u = self.traj_ctrl.update(t, pos_pv, vel_pv)
       self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+
+      # Record position
+      self.pos_time.append(t)
+      self.pos_hist.append([self.pos[0], self.pos[1], self.pos[2]])
+
+      # Transition to hover?
       if t >= self.traj_period:
         self.mode = MavMode.HOVER
         self.traj_start = None
 
     # HOVER
     elif self.mode == MavMode.HOVER:
-      # Position controller
+      # Start hover timer
       if self.hover_start is None:
         self.hover_start = self.ts
 
-      pos = self.traj_ctrl.get_position(self.traj_period)
-      yaw = self.traj_ctrl.get_yaw(self.traj_period)
+      # Get hover point
+      pos = self.traj_ctrl.get_position(0.0)
+      yaw = self.traj_ctrl.get_yaw(0.0)
       self.pos_sp = [pos[0], pos[1], pos[2], yaw]
+
+      # Update position controller
       vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
       u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
       self.pub_attitude_sp(u[0], u[1], u[2], u[3])
 
+      # Transition to land?
       hover_time = float(self.ts - self.hover_start) * 1e-9
       if hover_time > self.hover_for:
         self.hover_start = None
@@ -464,11 +578,13 @@ class MavNode(Node):
 
     # LAND
     elif self.mode == MavMode.LAND:
-      if self.vehicle_status.arming_state == 1:
+      # Dis-armed?
+      if self.status.arming_state == VehicleStatus.ARMING_STATE_DISARMED:
         self.stop_node()
         return
 
-      if self.vehicle_status.nav_state != 18:
+      # Land
+      if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
         self.land()
 
   def stop_node(self):
@@ -481,6 +597,13 @@ class MavNode(Node):
     self.sub_pos_sp.destroy()
     self.sub_yaw_sp.destroy()
     self.sub_status.destroy()
+
+    self.pos_time = np.array(self.pos_time)
+    self.pos_hist = np.array(self.pos_hist)
+
+    import matplotlib.pylab as plt
+    plt.plot(self.pos_hist[:, 0], self.pos_hist[:, 1], "r-")
+    plt.show()
 
     self.get_logger().info('Destroying the node')
     self.destroy_node()

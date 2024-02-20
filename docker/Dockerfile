@@ -52,14 +52,14 @@ RUN wget https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
   && mv nvim.appimage /usr/local/nvim
 
 # Install dotfiles
-USER $USER
-WORKDIR $HOME
-RUN git clone https://github.com/chutsu/dotfiles.git \
-  && cd dotfiles \
-  && make init \
-  && make gitconfig \
-  && make nvim \
-  && make vifm
+# USER $USER
+# WORKDIR $HOME
+# RUN git clone https://github.com/chutsu/dotfiles.git \
+#   && cd dotfiles \
+#   && make init \
+#   && make gitconfig \
+#   && make nvim \
+#   && make vifm
 
 # Entry point script
 WORKDIR $HOME

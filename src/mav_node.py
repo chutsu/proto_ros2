@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from enum import Enum
+
 import numpy as np
 from numpy import deg2rad
 from numpy import rad2deg
@@ -77,7 +79,6 @@ class MavVelocityControl:
     self.pid_vy.reset()
     self.pid_vz.reset()
     self.u = [0.0, 0.0, 0.0, 0.0]
-
 
 class MavPositionControl:
   def __init__(self):
@@ -212,9 +213,16 @@ class MavTrajectoryControl:
     plt.show()
 
 
+class MavMode(Enum):
+  GO_TO_START = 1
+  EXEC_TRAJECTORY = 2
+  HOVER = 3
+  LAND = 4
+
+
 class MavNode(Node):
   """Node for controlling a vehicle in offboard mode."""
-  def __init__(self) -> None:
+  def __init__(self):
     super().__init__('mav_node')
     topic_control = "/fmu/in/offboard_control_mode"
     topic_traj = "/fmu/in/trajectory_setpoint"
@@ -251,28 +259,29 @@ class MavNode(Node):
     self.vehicle_status = VehicleStatus()
     self.takeoff_height = 1.0
 
-    self.mode = 0
+    self.mode = MavMode.GO_TO_START
     self.ts = None
+    self.traj_period = 20.0
     self.traj_start = None
+    self.hover_start = None
     self.pos = None
     self.vel = None
     self.heading = 0.0
     self.pos_ctrl = MavPositionControl()
     self.vel_ctrl = MavVelocityControl()
-    self.traj_ctrl = MavTrajectoryControl(z=2.0, T=20.0)
+    self.traj_ctrl = MavTrajectoryControl(z=2.0, T=self.traj_period)
 
     x0, y0, z0 = self.traj_ctrl.get_position(0.0)
     self.yaw_sp = self.traj_ctrl.get_yaw(0.0)
     self.pos_sp = [x0, y0, z0, self.yaw_sp]
-
     # self.yaw_sp = 0.0
     # self.pos_sp = [0.0, 0.0, 2.0, 0.0]
 
     # Create a timer to publish control commands
     self.dt = 0.005
     self.timer = self.create_timer(self.dt, self.timer_cb)
-
-    self.cmd(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, param1=1.0, param2=6.0)
+    self.engage_offboard_mode()
+    self.arm()
 
   def pos_cb(self, msg):
     """Callback function for msg topic subscriber."""
@@ -327,7 +336,7 @@ class MavNode(Node):
   def land(self):
     """Switch to land mode."""
     self.cmd(VehicleCommand.VEHICLE_CMD_NAV_LAND)
-    self.get_logger().info("Switching to land mode")
+    self.get_logger().info("Landing!")
 
   def pub_heart_beat(self):
     """Publish the offboard control mode."""
@@ -361,7 +370,7 @@ class MavNode(Node):
     msg.thrust_body = [0.0, 0.0, -thrust]
     self.pub_att.publish(msg)
 
-  def cmd(self, command, **params) -> None:
+  def cmd(self, command, **params):
     """Publish a vehicle command."""
     msg = VehicleCommand()
     msg.command = command
@@ -380,7 +389,7 @@ class MavNode(Node):
     msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
     self.pub_cmd.publish(msg)
 
-  def timer_cb(self) -> None:
+  def timer_cb(self):
     """Callback function for the timer."""
     self.pub_heart_beat()
     if self.pos is None or self.vel is None:
@@ -390,11 +399,8 @@ class MavNode(Node):
     pos_pv = [self.pos[0], self.pos[1], self.pos[2], self.heading]
     vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
 
-    if self.offboard_setpoint_counter == 10:
-      self.engage_offboard_mode()
-      self.arm()
-
-    if self.mode == 0:
+    # GO TO START
+    if self.mode == MavMode.GO_TO_START:
       # Position controller
       vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
       u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
@@ -407,25 +413,50 @@ class MavNode(Node):
       dpos = np.sqrt(dx * dx + dy * dy + dz * dz)
       dyaw = np.fabs(self.heading - self.yaw_sp)
       if dpos < 0.1 and dyaw < np.deg2rad(10.0):
-        self.mode = 1
-        self.ts_traj_start = self.ts
+        self.mode = MavMode.EXEC_TRAJECTORY
 
-    else:
+    # EXECUTE TRAJECTORY
+    elif self.mode == MavMode.EXEC_TRAJECTORY:
       # Run trajectory
-      t = float(self.ts - self.ts_traj_start) * 1e-9
+      if self.traj_start is None:
+        self.traj_start = self.ts
+
+      t = float(self.ts - self.traj_start) * 1e-9
       vel_traj = self.traj_ctrl.get_velocity(t)
       yaw_traj = self.traj_ctrl.get_yaw(t)
       vel_sp = [vel_traj[0], vel_traj[1], vel_traj[2], yaw_traj]
       u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
       self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+      if t >= self.traj_period:
+        self.mode = MavMode.HOVER
+        self.traj_start = None
 
-    if self.offboard_setpoint_counter < 11:
-      self.offboard_setpoint_counter += 1
+    # HOVER
+    elif self.mode == MavMode.HOVER:
+      # Position controller
+      if self.hover_start is None:
+        self.hover_start = self.ts
+
+      pos = self.traj_ctrl.get_position(self.traj_period)
+      yaw = self.traj_ctrl.get_yaw(self.traj_period)
+      self.pos_sp = [pos[0], pos[1], pos[2], yaw]
+      vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
+      u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
+      self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+
+      hover_time = float(self.ts - self.hover_start) * 1e-9
+      if hover_time > 5.0:
+        self.hover_start = None
+        self.mode = MavMode.LAND
+
+    # LAND
+    elif self.mode == MavMode.LAND:
+      self.land()
 
 
 if __name__ == '__main__':
   rclpy.init()
-  offboard_control = MavNode()
-  rclpy.spin(offboard_control)
-  offboard_control.destroy_node()
+  mav_node = MavNode()
+  rclpy.spin(mav_node)
+  mav_node.destroy_node()
   rclpy.shutdown()

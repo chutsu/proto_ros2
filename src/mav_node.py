@@ -315,9 +315,11 @@ class MavTrajectoryControl:
 
 class MavMode(Enum):
   GO_TO_START = 1
-  EXEC_TRAJECTORY = 2
-  HOVER = 3
-  LAND = 4
+  VEL_CTRL_TUNE = 2
+  TUNE = 3
+  EXEC_TRAJECTORY = 4
+  HOVER = 5
+  LAND = 6
 
 
 class MavNode(Node):
@@ -364,6 +366,7 @@ class MavNode(Node):
     self.heading = 0.0
     self.traj_start = None
     self.hover_start = None
+    self.tune_start = None
 
     # Settings
     self.takeoff_height = 2.0
@@ -378,12 +381,8 @@ class MavNode(Node):
                                           delta=np.pi/2,
                                           z=self.takeoff_height,
                                           T=self.traj_period)
-
-    x0, y0, z0 = self.traj_ctrl.get_position(0.0)
-    self.yaw_sp = self.traj_ctrl.get_yaw(0.0)
-    self.pos_sp = [x0, y0, z0, self.yaw_sp]
-    # self.yaw_sp = 0.0
-    # self.pos_sp = [0.0, 0.0, 2.0, 0.0]
+    self.yaw_sp = 0.0
+    self.pos_sp = [0.0, 0.0, 2.0, 0.0]
 
     # Create a timer to publish control commands
     self.dt = 0.005
@@ -393,9 +392,47 @@ class MavNode(Node):
     self.engage_offboard_mode()
     self.arm()
 
+    # Position control tuning waypoints
+    self.vel_tune_setpoints = [
+      # Tune z-axis
+      [0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, -0.2, 0.0],
+      [0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.0, +0.2, 0.0],
+      [0.0, 0.0, 0.0, 0.0],
+      # Tune x-axis
+      [0.0, 0.0, 0.0, 0.0],
+      [0.5, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0],
+      [-0.5, 0.0, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0],
+      # Tune y-axis
+      [0.0, 0.0, 0.0, 0.0],
+      [0.0, 0.5, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0],
+      [0.0, -0.5, 0.0, 0.0],
+      [0.0, 0.0, 0.0, 0.0]
+    ]
+
+    # Position control tuning waypoints
+    self.pos_tune_setpoints = [
+      # Tune x-axis
+      [0.0, 0.0, self.takeoff_height, 0.0],
+      [1.0, 0.0, self.takeoff_height, 0.0],
+      [-1.0, 0.0, self.takeoff_height, 0.0],
+      [0.0, 0.0, self.takeoff_height, 0.0],
+      # Tune y-axis
+      [0.0, 0.0, self.takeoff_height, 0.0],
+      [0.0, 0.0, self.takeoff_height, 0.0],
+      [0.0, 1.0, self.takeoff_height, 0.0],
+      [0.0, -1.0, self.takeoff_height, 0.0],
+      [0.0, 0.0, self.takeoff_height, 0.0]
+    ]
+
     # Data
     self.pos_time = []
-    self.pos_hist = []
+    self.pos_actual = []
+    self.pos_traj = []
 
   def pos_cb(self, msg):
     """Callback function for msg topic subscriber."""
@@ -508,18 +545,150 @@ class MavNode(Node):
     self.timer.cancel()
     self.destroy_timer(self.timer)
 
-  def timer_cb(self):
-    """Callback function for the timer."""
-    self.pub_heart_beat()
-    if self.pos is None or self.vel is None:
-      return
+  def execute_velocity_control_test(self):
+    # Process variables
+    pos_pv = [self.pos[0], self.pos[1], self.pos[2], self.heading]
+    vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
 
+    if self.mode == MavMode.GO_TO_START:
+      # Start hover timer
+      if self.hover_start is None:
+        self.hover_start = self.ts
+
+      # Get hover point
+      self.pos_sp = [0.0, 0.0, self.takeoff_height, self.yaw_sp]
+
+      # Update position controller
+      vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
+      u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
+      self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+
+      # Transition to land?
+      hover_time = float(self.ts - self.hover_start) * 1e-9
+      dx = self.pos[0] - self.pos_sp[0]
+      dy = self.pos[1] - self.pos_sp[1]
+      dz = self.pos[2] - self.pos_sp[2]
+      dpos = np.sqrt(dx * dx + dy * dy + dz * dz)
+      dyaw = np.fabs(self.heading - self.yaw_sp)
+      if dpos < 0.2 and dyaw < np.deg2rad(10.0) and hover_time > 3.0:
+        self.get_logger().info('TRANSITION TO TUNE!')
+        self.mode = MavMode.TUNE
+        self.hover_start = None
+
+    elif self.mode == MavMode.TUNE:
+      # Start hover timer
+      if self.tune_start is None:
+        self.tune_start = self.ts
+
+      # Velocity controller
+      vel_sp = self.vel_tune_setpoints[0]
+      u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
+      self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+
+      # Check if position setpoint reached
+      tune_time = float(self.ts - self.tune_start) * 1e-9
+      if tune_time >= 2.0:
+        self.get_logger().info('BACK TO START!')
+        self.mode = MavMode.GO_TO_START
+        self.vel_tune_setpoints.pop(0)
+        self.tune_start = None
+        self.hover_start = None
+
+      # Land?
+      if len(self.vel_tune_setpoints) == 0:
+        self.mode = MavMode.LAND
+        self.tune_start = None
+
+    elif self.mode == MavMode.LAND:
+      # Dis-armed?
+      if self.status.arming_state == VehicleStatus.ARMING_STATE_DISARMED:
+        self.stop_node()
+        return
+
+      # Land
+      if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
+        self.land()
+
+
+  def execute_position_control_test(self):
+    # Start tune timestamp
+    if self.tune_start is None:
+      self.tune_start = self.ts
+
+    # Process variables
+    pos_pv = [self.pos[0], self.pos[1], self.pos[2], self.heading]
+    vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
+
+    if self.mode == MavMode.GO_TO_START:
+      # Start hover timer
+      if self.hover_start is None:
+        self.hover_start = self.ts
+
+      # Get hover point
+      self.pos_sp = [0.0, 0.0, self.takeoff_height, self.yaw_sp]
+
+      # Update position controller
+      vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
+      u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
+      self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+
+      # Transition to land?
+      hover_time = float(self.ts - self.hover_start) * 1e-9
+      dx = self.pos[0] - self.pos_sp[0]
+      dy = self.pos[1] - self.pos_sp[1]
+      dz = self.pos[2] - self.pos_sp[2]
+      dpos = np.sqrt(dx * dx + dy * dy + dz * dz)
+      dyaw = np.fabs(self.heading - self.yaw_sp)
+      if dpos < 0.2 and dyaw < np.deg2rad(10.0) and hover_time > 3.0:
+        self.get_logger().info('TRANSITION TO TUNE!')
+        self.mode = MavMode.TUNE
+        self.hover_start = None
+
+    elif self.mode == MavMode.TUNE:
+      # Position controller
+      self.pos_sp = self.pos_tune_setpoints[0]
+      vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
+      u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
+      self.pub_attitude_sp(u[0], u[1], u[2], u[3])
+
+      # Check if position setpoint reached
+      tune_time = float(self.ts - self.tune_start) * 1e-9
+      dx = self.pos[0] - self.pos_sp[0]
+      dy = self.pos[1] - self.pos_sp[1]
+      dz = self.pos[2] - self.pos_sp[2]
+      dpos = np.sqrt(dx * dx + dy * dy + dz * dz)
+      if dpos < 0.1 and tune_time >= self.hover_for:
+        self.pos_tune_setpoints.pop(0)
+        self.tune_start = None
+
+      # Land?
+      if len(self.pos_tune_setpoints) == 0:
+        self.mode = MavMode.LAND
+        self.tune_start = None
+
+    elif self.mode == MavMode.LAND:
+      # Dis-armed?
+      if self.status.arming_state == VehicleStatus.ARMING_STATE_DISARMED:
+        self.stop_node()
+        return
+
+      # Land
+      if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
+        self.land()
+
+
+  def execute_trajectory(self):
     # Process variables
     pos_pv = [self.pos[0], self.pos[1], self.pos[2], self.heading]
     vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
 
     # GO TO START
     if self.mode == MavMode.GO_TO_START:
+      # Set yaw and position setpoint
+      x0, y0, z0 = self.traj_ctrl.get_position(0.0)
+      self.yaw_sp = self.traj_ctrl.get_yaw(0.0)
+      self.pos_sp = [x0, y0, z0, self.yaw_sp]
+
       # Position controller
       vel_sp = self.pos_ctrl.update(self.pos_sp, pos_pv, self.dt)
       u = self.vel_ctrl.update(vel_sp, vel_pv, self.dt)
@@ -547,7 +716,8 @@ class MavNode(Node):
 
       # Record position
       self.pos_time.append(t)
-      self.pos_hist.append([self.pos[0], self.pos[1], self.pos[2]])
+      self.pos_actual.append([self.pos[0], self.pos[1], self.pos[2]])
+      self.pos_traj.append(self.traj_ctrl.get_position(t))
 
       # Transition to hover?
       if t >= self.traj_period:
@@ -587,6 +757,16 @@ class MavNode(Node):
       if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
         self.land()
 
+  def timer_cb(self):
+    """Callback function for the timer."""
+    self.pub_heart_beat()
+    if self.pos is None or self.vel is None:
+      return
+
+    # self.execute_velocity_control_test()
+    # self.execute_position_control_test()
+    self.execute_trajectory()
+
   def stop_node(self):
     """ Stop Node """
     self.get_logger().info('Stopping the node')
@@ -599,10 +779,12 @@ class MavNode(Node):
     self.sub_status.destroy()
 
     self.pos_time = np.array(self.pos_time)
-    self.pos_hist = np.array(self.pos_hist)
+    self.pos_actual = np.array(self.pos_actual)
+    self.pos_traj = np.array(self.pos_traj)
 
     import matplotlib.pylab as plt
-    plt.plot(self.pos_hist[:, 0], self.pos_hist[:, 1], "r-")
+    plt.plot(self.pos_actual[:, 0], self.pos_actual[:, 1], "r-", label="Actual")
+    plt.plot(self.pos_traj[:, 0], self.pos_traj[:, 1], "k--", label="Trajectory")
     plt.show()
 
     self.get_logger().info('Destroying the node')

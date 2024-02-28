@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 from enum import Enum
 
 import numpy as np
@@ -16,6 +17,7 @@ from proto import quat_mul
 from proto import quat_normalize
 from proto import wrap_pi
 from proto import PID
+from proto import KalmanFilter
 
 import rclpy
 from rclpy.node import Node
@@ -25,6 +27,7 @@ from rclpy.qos import HistoryPolicy
 from rclpy.qos import DurabilityPolicy
 from std_msgs.msg import Float32
 from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import PoseStamped
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import TrajectorySetpoint
 from px4_msgs.msg import VehicleCommand
@@ -322,10 +325,73 @@ class MavMode(Enum):
   LAND = 6
 
 
+class MocapFilter:
+  def __init__(self):
+    self.initialized = False
+
+    # Initial state x
+    self.x = np.zeros(9)
+
+    # Convariance
+    self.P = np.eye(9)
+
+    # Measurement Matrix
+    self.H = np.block([np.eye(3), np.zeros((3, 6))])
+
+    # Process Noise Matrix
+    self.Q = np.eye(9)
+    self.Q[0:3, 0:3] = 0.01 * np.eye(3)
+    self.Q[3:6, 3:6] = 0.00001**2 * np.eye(3)
+    self.Q[6:9, 6:9] = 0.00001**2 * np.eye(3)
+
+    # Measurement Noise Matrix
+    self.R = 0.1**2 * np.eye(3)
+
+  def get_position(self):
+    """ Get Position """
+    return np.array([state[0], state[1], state[2]])
+
+  def get_velocity(self):
+    """ Get Velocity """
+    return np.array([state[3], state[4], state[5]])
+
+  def update(self, pos, dt):
+    """ Update """
+    # Initialize
+    if self.initialized is False:
+      self.x[0] = pos[0]
+      self.x[1] = pos[1]
+      self.x[2] = pos[2]
+      self.initialized = True
+      return False
+
+    # Predict
+    # -- Transition Matrix
+    F = np.eye(9)
+    F[0:3, 3:6] = np.eye(3) * dt
+    F[0:3, 6:9] = np.eye(3) * dt**2
+    F[3:6, 6:9] = np.eye(3) * dt
+    # -- Predict
+    self.x = F @ self.x
+    self.P = F @ self.P @ F.T + self.Q
+
+    # Update
+    I = np.eye(9)
+    y = z - self.H @ self.x
+    S = self.R + self.H @ self.P @ self.H.T
+    K = self.P @ self.H.T @ np.linalg.inv(S)
+    self.x = self.x + K @ y
+    self.P = (I - K @ self.H) @ self.P
+
+    return True
+
+
 class MavNode(Node):
   """Node for controlling a vehicle in offboard mode."""
-  def __init__(self):
+  def __init__(self, **kwargs):
     super().__init__('mav_node')
+    self.sim_mode = kwargs.get("sim_mode", True)
+
     self.is_running = True
     topic_control = "/fmu/in/offboard_control_mode"
     topic_traj = "/fmu/in/trajectory_setpoint"
@@ -335,6 +401,7 @@ class MavNode(Node):
     topic_status = "/fmu/out/vehicle_status"
     topic_pos_sp = "/mav/in/position_setpoint"
     topic_yaw_sp = "/mav/in/yaw_setpoint"
+    topic_mocap = "/vicon/srl_mav/srl_mav"
 
     # Configure QoS profile for publishing and subscribing
     qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -355,12 +422,14 @@ class MavNode(Node):
     self.sub_pos_sp = sub_init(Vector3, topic_pos_sp, self.pos_sp_cb, qos)
     self.sub_yaw_sp = sub_init(Float32, topic_yaw_sp, self.yaw_sp_cb, qos)
     self.sub_status = sub_init(VehicleStatus, topic_status, self.status_cb, qos)
+    self.sub_mocap = sub_init(PoseStamped, topic_mocap, self.mocap_cb, qos)
 
     # State
     self.vehicle_local_position = LocalPosition()
     self.status = VehicleStatus()
     self.mode = MavMode.GO_TO_START
     self.ts = None
+    self.ts_prev = None
     self.pos = None
     self.vel = None
     self.heading = 0.0
@@ -373,12 +442,15 @@ class MavNode(Node):
     self.traj_period = 30.0
     self.hover_for = 3.0
 
+    # Filter
+    self.filter = MocapFilter()
+
     # Control
     self.pos_ctrl = MavPositionControl()
     self.vel_ctrl = MavVelocityControl()
-    self.traj_ctrl = MavTrajectoryControl(a=2,
+    self.traj_ctrl = MavTrajectoryControl(a=1,
                                           b=2,
-                                          delta=np.pi/2,
+                                          delta=np.pi / 2,
                                           z=self.takeoff_height,
                                           T=self.traj_period)
     self.yaw_sp = 0.0
@@ -388,45 +460,46 @@ class MavNode(Node):
     self.dt = 0.005
     self.timer = self.create_timer(self.dt, self.timer_cb)
 
-    # Engage offboard and arm MAV
-    self.engage_offboard_mode()
-    self.arm()
+    # Engage offboard and arm MAV if in sim mode
+    if self.sim_mode:
+      self.arm()
+      self.engage_offboard_mode()
 
     # Position control tuning waypoints
     self.vel_tune_setpoints = [
-      # Tune z-axis
-      [0.0, 0.0, 0.0, 0.0],
-      [0.0, 0.0, -0.2, 0.0],
-      [0.0, 0.0, 0.0, 0.0],
-      [0.0, 0.0, +0.2, 0.0],
-      [0.0, 0.0, 0.0, 0.0],
-      # Tune x-axis
-      [0.0, 0.0, 0.0, 0.0],
-      [0.5, 0.0, 0.0, 0.0],
-      [0.0, 0.0, 0.0, 0.0],
-      [-0.5, 0.0, 0.0, 0.0],
-      [0.0, 0.0, 0.0, 0.0],
-      # Tune y-axis
-      [0.0, 0.0, 0.0, 0.0],
-      [0.0, 0.5, 0.0, 0.0],
-      [0.0, 0.0, 0.0, 0.0],
-      [0.0, -0.5, 0.0, 0.0],
-      [0.0, 0.0, 0.0, 0.0]
+        # Tune z-axis
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, -0.2, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, +0.2, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        # Tune x-axis
+        [0.0, 0.0, 0.0, 0.0],
+        [0.5, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [-0.5, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        # Tune y-axis
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.5, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, -0.5, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0]
     ]
 
     # Position control tuning waypoints
     self.pos_tune_setpoints = [
-      # Tune x-axis
-      [0.0, 0.0, self.takeoff_height, 0.0],
-      [1.0, 0.0, self.takeoff_height, 0.0],
-      [-1.0, 0.0, self.takeoff_height, 0.0],
-      [0.0, 0.0, self.takeoff_height, 0.0],
-      # Tune y-axis
-      [0.0, 0.0, self.takeoff_height, 0.0],
-      [0.0, 0.0, self.takeoff_height, 0.0],
-      [0.0, 1.0, self.takeoff_height, 0.0],
-      [0.0, -1.0, self.takeoff_height, 0.0],
-      [0.0, 0.0, self.takeoff_height, 0.0]
+        # Tune x-axis
+        [0.0, 0.0, self.takeoff_height, 0.0],
+        [1.0, 0.0, self.takeoff_height, 0.0],
+        [-1.0, 0.0, self.takeoff_height, 0.0],
+        [0.0, 0.0, self.takeoff_height, 0.0],
+        # Tune y-axis
+        [0.0, 0.0, self.takeoff_height, 0.0],
+        [0.0, 0.0, self.takeoff_height, 0.0],
+        [0.0, 1.0, self.takeoff_height, 0.0],
+        [0.0, -1.0, self.takeoff_height, 0.0],
+        [0.0, 0.0, self.takeoff_height, 0.0]
     ]
 
     # Data
@@ -456,6 +529,21 @@ class MavNode(Node):
     elif self.heading < -np.pi:
       self.heading += 2.0 * np.pi
 
+  def mocap_cb(self, msg):
+    """Mocap callback"""
+    self.ts = int(msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec)
+    dt = float((self.ts - self.ts_prev) * 1e-9) if self.ts_prev else 0.0
+    self.ts_prev = self.ts
+
+    rx = msg.pose.position.x
+    ry = msg.pose.position.y
+    rz = msg.pose.position.z
+    pos = np.array([rx, ry, rz])
+
+    if self.filter.update(pos, dt):
+      self.pos = self.filter.get_position()
+      self.vel = self.filter.get_velocity()
+
   def pos_sp_cb(self, msg):
     """Callback function for position setpoint topic subscriber."""
     self.pos_sp = [msg.x, msg.y, msg.z, self.yaw_sp]
@@ -468,6 +556,14 @@ class MavNode(Node):
   def status_cb(self, vehicle_status):
     """Callback function for vehicle_status topic subscriber."""
     self.status = vehicle_status
+
+  def is_armed(self):
+    """ Is armed? """
+    return self.status.arming_state == VehicleStatus.ARMING_STATE_ARMED
+
+  def is_offboard(self):
+    """ Is offboard? """
+    return self.status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD
 
   def arm(self):
     """Send an arm command to the vehicle."""
@@ -609,7 +705,6 @@ class MavNode(Node):
       if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
         self.land()
 
-
   def execute_position_control_test(self):
     # Start tune timestamp
     if self.tune_start is None:
@@ -675,7 +770,6 @@ class MavNode(Node):
       # Land
       if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
         self.land()
-
 
   def execute_trajectory(self):
     # Process variables
@@ -763,6 +857,9 @@ class MavNode(Node):
     if self.pos is None or self.vel is None:
       return
 
+    if self.is_armed() and self.is_offboard():
+      return
+
     # self.execute_velocity_control_test()
     # self.execute_position_control_test()
     self.execute_trajectory()
@@ -782,9 +879,11 @@ class MavNode(Node):
     self.pos_actual = np.array(self.pos_actual)
     self.pos_traj = np.array(self.pos_traj)
 
-    import matplotlib.pylab as plt
     plt.plot(self.pos_actual[:, 0], self.pos_actual[:, 1], "r-", label="Actual")
-    plt.plot(self.pos_traj[:, 0], self.pos_traj[:, 1], "k--", label="Trajectory")
+    plt.plot(self.pos_traj[:, 0],
+             self.pos_traj[:, 1],
+             "k--",
+             label="Trajectory")
     plt.show()
 
     self.get_logger().info('Destroying the node')
@@ -793,8 +892,13 @@ class MavNode(Node):
 
 
 if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--sim_mode", default=True)
+  args = parser.parse_args()
+
+  # Run Mav Node
   rclpy.init()
-  node = MavNode()
+  node = MavNode(sim_mode=args.sim_mode)
   while node.is_running:
     rclpy.spin_once(node)
   rclpy.shutdown()

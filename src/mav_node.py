@@ -317,12 +317,11 @@ class MavTrajectoryControl:
 
 
 class MavMode(Enum):
-  GO_TO_START = 1
-  VEL_CTRL_TUNE = 2
-  TUNE = 3
-  EXEC_TRAJECTORY = 4
-  HOVER = 5
-  LAND = 6
+  START = 1
+  TUNE = 2
+  TRAJ = 3
+  HOVER = 4
+  LAND = 5
 
 
 class MocapFilter:
@@ -427,7 +426,7 @@ class MavNode(Node):
     # State
     self.vehicle_local_position = LocalPosition()
     self.status = VehicleStatus()
-    self.mode = MavMode.GO_TO_START
+    self.mode = MavMode.START
     self.ts = None
     self.ts_prev = None
     self.pos = None
@@ -646,7 +645,7 @@ class MavNode(Node):
     pos_pv = [self.pos[0], self.pos[1], self.pos[2], self.heading]
     vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
 
-    if self.mode == MavMode.GO_TO_START:
+    if self.mode == MavMode.START:
       # Start hover timer
       if self.hover_start is None:
         self.hover_start = self.ts
@@ -685,7 +684,7 @@ class MavNode(Node):
       tune_time = float(self.ts - self.tune_start) * 1e-9
       if tune_time >= 2.0:
         self.get_logger().info('BACK TO START!')
-        self.mode = MavMode.GO_TO_START
+        self.mode = MavMode.START
         self.vel_tune_setpoints.pop(0)
         self.tune_start = None
         self.hover_start = None
@@ -714,7 +713,7 @@ class MavNode(Node):
     pos_pv = [self.pos[0], self.pos[1], self.pos[2], self.heading]
     vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
 
-    if self.mode == MavMode.GO_TO_START:
+    if self.mode == MavMode.START:
       # Start hover timer
       if self.hover_start is None:
         self.hover_start = self.ts
@@ -777,7 +776,7 @@ class MavNode(Node):
     vel_pv = [self.vel[0], self.vel[1], self.vel[2], self.heading]
 
     # GO TO START
-    if self.mode == MavMode.GO_TO_START:
+    if self.mode == MavMode.START:
       # Set yaw and position setpoint
       x0, y0, z0 = self.traj_ctrl.get_position(0.0)
       self.yaw_sp = self.traj_ctrl.get_yaw(0.0)
@@ -795,10 +794,10 @@ class MavNode(Node):
       dpos = np.sqrt(dx * dx + dy * dy + dz * dz)
       dyaw = np.fabs(self.heading - self.yaw_sp)
       if dpos < 0.1 and dyaw < np.deg2rad(10.0):
-        self.mode = MavMode.EXEC_TRAJECTORY
+        self.mode = MavMode.TRAJ
 
     # EXECUTE TRAJECTORY
-    elif self.mode == MavMode.EXEC_TRAJECTORY:
+    elif self.mode == MavMode.TRAJ:
       # Run trajectory
       if self.traj_start is None:
         self.traj_start = self.ts
@@ -854,9 +853,12 @@ class MavNode(Node):
   def timer_cb(self):
     """Callback function for the timer."""
     self.pub_heart_beat()
+
+    # Check we are receiving position and velocity information
     if self.pos is None or self.vel is None:
       return
 
+    # Check MAV is armed and offboard mode activated
     if self.is_armed() and self.is_offboard():
       return
 

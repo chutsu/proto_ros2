@@ -188,9 +188,12 @@ def compensate_gimbal(calib_path, okvis_vio_file, joints_file):
   joints = pandas.read_csv(joints_file, header=1).to_numpy()
   joints_ts = joints[:, 0]
   joints_time = (joints_ts - joints_ts[0]) * 1e-9
-  joints0 = joints[:, 1]
-  joints1 = joints[:, 2]
-  joints2 = joints[:, 3]
+  # joints0 = joints[:, 1] 0
+  # joints1 = joints[:, 2] 1
+  # joints2 = joints[:, 3] 2
+  joints0 = np.deg2rad(joints[:, 3])
+  joints1 = np.deg2rad(joints[:, 1])
+  joints2 = np.deg2rad(joints[:, 2])
 
   # Load OKVIS VIO data
   okvis = pandas.read_csv(okvis_vio_file, header=1).to_numpy()
@@ -203,6 +206,7 @@ def compensate_gimbal(calib_path, okvis_vio_file, joints_file):
   theta1 = np.interp(okvis_time, joints_time, joints1)
   theta2 = np.interp(okvis_time, joints_time, joints2)
 
+  # Visualize interpolation
   # plt.subplot(311)
   # plt.plot(okvis_time, np.rad2deg(theta0), "b-", label="Interpolated")
   # plt.plot(joints_time, np.rad2deg(joints0), "r-", label="Raw")
@@ -472,8 +476,22 @@ def eval_dataset(calib_path, seq_dir):
   run_okvis(okvis_config, run1_path)
   os.system(f"mv {run1_path}/okvis2-vio_trajectory.csv {seq_dir}/rs1-okvis_vio.csv")
 
+def plot_3d(gnd, est0, est1, **kwargs):
+  plt.figure()
+  ax = plt.axes(projection='3d')
 
-def plot_results(gnd, est0, est1, save_path):
+  ax.plot(gnd[0, :], gnd[1, :], gnd[2, :], "k--", label="Ground Truth")
+  # ax.plot(est0[0, :], est0[1, :], est0[2, :], "b-", label="Static Camera")
+  ax.plot(est1[0, :], est1[1, :], est1[2, :], "r-", label="Gimbal Camera")
+
+  ax.set_xlabel("x [m]")
+  ax.set_ylabel("y [m]")
+  ax.set_zlabel("z [m]")
+  proto.plot_set_axes_equal(ax)
+  plt.show()
+
+
+def plot_results(gnd, est0, est1, save_path, **kwargs):
   figsize = (1100, 600)
   dpi = 90
   plt.figure(figsize=(figsize[0] / dpi, figsize[1] / dpi))
@@ -521,12 +539,14 @@ def plot_results(gnd, est0, est1, save_path):
 
   # plt.tight_layout()
   plt.subplots_adjust(wspace=0.3, hspace=0)
-  plt.savefig(save_path)
-  # plt.show()
+  if kwargs.get("savefig", False):
+    plt.savefig(save_path)
+  if kwargs.get("show", False):
+    plt.show()
 
 
 if __name__ == "__main__":
-  # calib_path = "/data/gimbal_experiments/calib"
+  calib_path = "/data/gimbal_experiments/exp-240207/calib"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-circle-0"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-circle-1"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-figure8-0"
@@ -534,14 +554,14 @@ if __name__ == "__main__":
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-noisy-0"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-noisy-1"
 
-  calib_path = "/data/gimbal_experiments/exp-240220/calib-240225"
+  # calib_path = "/data/gimbal_experiments/exp-240220/calib-240225"
   # seq_path = "/data/gimbal_experiments/exp-240220/exp-circle-0"
   # seq_path = "/data/gimbal_experiments/exp-240220/exp-circle-1"
   # seq_path = "/data/gimbal_experiments/exp-240220/exp-figure8-0"
   # seq_path = "/data/gimbal_experiments/exp-240220/exp-figure8-1"
   # seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-0"
   # seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-1"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-2"
+  seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-2"
 
   # Evaluate dataset
   # eval_dataset(calib_path, seq_path)
@@ -550,9 +570,17 @@ if __name__ == "__main__":
   mocap_file = join(seq_path, "mocap.csv")
   rs0_file = join(seq_path, "rs0-okvis_vio.csv")
   rs1_file = join(seq_path, "rs1-okvis_vio.csv")
+
+  joints_file = join(seq_path, "joints.csv")
+  compensate_gimbal(calib_path, rs1_file, joints_file)
+  rs1_file = join(seq_path, "rs1-okvis_vio-compensated.csv")
+
   metrics0, gnd, est0 = eval_traj(mocap_file, rs0_file, verbose=True)
   metrics1, gnd, est1 = eval_traj(mocap_file, rs1_file, verbose=True)
 
   # Plot results
   seq_name = os.path.basename(seq_path)
-  plot_results(gnd, est0, est1, f"{seq_path}/../plot_odom-{seq_name}.png")
+  save_path = f"{seq_path}/../plot_odom-{seq_name}.png"
+  kwargs = {"show": True, "savefig": True}
+  plot_results(gnd, est0, est1, save_path, **kwargs)
+  # plot_3d(gnd, est0, est1)

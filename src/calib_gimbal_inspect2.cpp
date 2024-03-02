@@ -180,19 +180,20 @@ int main(int argc, char *argv[]) {
       const auto ts_min = *std::min_element(tss.begin(), tss.end());
       const auto ts_diff = (ts_max - ts_min) * 1e-9;
 
-      printf("ts_diff: %f\n", ts_diff);
-      printf("ts0: %ld\n", ts0);
-      printf("ts1: %ld\n", ts1);
-      printf("ts2: %ld\n", ts2);
-      printf("ts3: %ld\n", ts3);
-      printf("\n");
-      fflush(stdout);
+      // printf("ts_diff: %f\n", ts_diff);
+      // printf("ts0: %ld\n", ts0);
+      // printf("ts1: %ld\n", ts1);
+      // printf("ts2: %ld\n", ts2);
+      // printf("ts3: %ld\n", ts3);
+      // printf("\n");
+      // fflush(stdout);
 
       if ((ts_max - ts_min) * 1e-9 < 0.01 && (ts0 - last_ts) * 1e-9 > 0.01) {
         auto frame0 = frame2cvmat(ir0_frame, fwidth, fheight, CV_8UC1);
         auto frame1 = frame2cvmat(ir1_frame, fwidth, fheight, CV_8UC1);
         auto frame2 = frame2cvmat(ir2_frame, fwidth, fheight, CV_8UC1);
         auto frame3 = frame2cvmat(ir3_frame, fwidth, fheight, CV_8UC1);
+        printf("frame rate: %f\n", 1.0 / (((double) (ts0 - last_ts)) * 1e-9));
 
         cv::Mat frame1_viz;
         cv::Mat frame2_viz;

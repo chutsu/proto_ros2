@@ -347,7 +347,7 @@ cameras:
 camera_parameters:
     timestamp_tolerance: 0.005 # [s] stereo frame out-of-sync tolerance
     sync_cameras: [0, 1]
-    image_delay: 0.0 # [s] timestamp_camera_correct = timestamp_camera - image_delay
+    image_delay: {time_delay} # [s] timestamp_camera_correct = timestamp_camera - image_delay
     online_calibration: # some parameters to set the online
         do_extrinsics: false # Do we online-calibrate extrinsics?
         do_extrinsics_final_ba: false # Do we online-calibrate extrinsics?
@@ -391,8 +391,8 @@ estimator_parameters:
     num_keyframes: 5 # number of keyframes in optimisation window
     num_loop_closure_frames: 5 # number of loop closure frames in optimisation window
     num_imu_frames: 3 # number of frames linked by most recent nonlinear IMU error terms
-    do_loop_closures: true # whether to do VI-SLAM or VIO
-    do_final_ba: true # Whether to run a full final BA
+    do_loop_closures: false # whether to do VI-SLAM or VIO
+    do_final_ba: false # Whether to run a full final BA
     enforce_realtime: true # whether to limit the time budget for optimisation
     realtime_min_iterations: 3 # minimum number of iterations always performed
     realtime_max_iterations: 10 # never do more than these, even if not converged
@@ -449,7 +449,7 @@ def eval_dataset(calib_path, seq_dir):
   okvis_config = "/tmp/okvis_config.yaml"
   rs0_calib = f"{calib_path}/calib_camimu-rs0/calib_vi-results.yaml"
   form_okvis_config(rs0_calib, okvis_config)
-  okvis_config = "/data/gimbal_experiments/realsense_d435i.yaml"
+  # okvis_config = "/data/gimbal_experiments/realsense_d435i.yaml"
 
   os.system(f"rm -rf {run0_path}")
   os.system(f"mkdir -p {run0_path}")
@@ -463,7 +463,7 @@ def eval_dataset(calib_path, seq_dir):
   okvis_config = "/tmp/okvis_config.yaml"
   rs1_calib = f"{calib_path}/calib_camimu-rs1/calib_vi-results.yaml"
   form_okvis_config(rs1_calib, okvis_config)
-  okvis_config = "/data/gimbal_experiments/realsense_d435i.yaml"
+  # okvis_config = "/data/gimbal_experiments/realsense_d435i.yaml"
 
   os.system(f"rm -rf {run1_path}")
   os.system(f"mkdir -p {run1_path}")
@@ -475,6 +475,26 @@ def eval_dataset(calib_path, seq_dir):
   os.system(f"mv {run1_path}/imu1 {run1_path}/imu0")
   run_okvis(okvis_config, run1_path)
   os.system(f"mv {run1_path}/okvis2-vio_trajectory.csv {seq_dir}/rs1-okvis_vio.csv")
+
+
+def reformat_results(input_file, output_path):
+  csv_data = pandas.read_csv(input_file, header=1).to_numpy()
+  csv_ts = csv_data[:, 0].astype(float) * 1e-9
+  csv_poses = csv_data[:, 1:8]
+
+  out_csv = open(output_path, "w")
+  out_csv.write("# timestamp tx ty tz qx qy qz qw\n")
+  for ts, pose in zip(csv_ts, csv_poses):
+    out_csv.write(f"{ts} ")
+    out_csv.write(f"{pose[0]} ")
+    out_csv.write(f"{pose[1]} ")
+    out_csv.write(f"{pose[2]} ")
+    out_csv.write(f"{pose[3]} ")
+    out_csv.write(f"{pose[4]} ")
+    out_csv.write(f"{pose[5]} ")
+    out_csv.write(f"{pose[6]}\n")
+  out_csv.close()
+
 
 def plot_3d(gnd, est0, est1, **kwargs):
   plt.figure()
@@ -495,15 +515,18 @@ def plot_results(gnd, est0, est1, save_path, **kwargs):
   figsize = (1100, 600)
   dpi = 90
   plt.figure(figsize=(figsize[0] / dpi, figsize[1] / dpi))
-  # Plot Ground-Truth and Static Camera
-  plt.subplot(121)
-  plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
-  plt.plot(est0[0, :], est0[1, :], "r-", label="Static Camera")
+  N = int(gnd.shape[1] * 0.5)
 
   min_x = np.min(gnd[0, :])
   min_y = np.min(gnd[1, :])
   max_y = np.max(gnd[1, :])
   step_y = (max_y - min_y) * 0.05
+
+  # Plot Ground-Truth and Static Camera
+  plt.subplot(121)
+  plt.plot(gnd[0, 0:N], gnd[1, 0:N], "k--", label="Ground Truth")
+  plt.plot(est0[0, 0:N], est0[1, 0:N], "r-", label="Ridgid Camera")
+
   plt.text(min_x, min_y - step_y * 0, f"RMSE:    {metrics0['ate']['rmse']:.4f}m")
   plt.text(min_x, min_y - step_y * 1, f"Mean:    {metrics0['ate']['mean']:.4f}m")
   plt.text(min_x, min_y - step_y * 2, f"Median: {metrics0['ate']['median']:.4f}m")
@@ -518,13 +541,9 @@ def plot_results(gnd, est0, est1, save_path, **kwargs):
 
   # Plot Ground-Truth and Gimbal Camera
   plt.subplot(122)
-  plt.plot(gnd[0, :], gnd[1, :], "k--", label="Ground Truth")
-  plt.plot(est1[0, :], est1[1, :], "b-", label="Dynamic Camera")
+  plt.plot(gnd[0, 0:N], gnd[1, 0:N], "k--", label="Ground Truth")
+  plt.plot(est1[0, 0:N], est1[1, 0:N], "b-", label="Gimbal Camera")
 
-  min_x = np.min(gnd[0, :])
-  min_y = np.min(gnd[1, :])
-  max_y = np.max(gnd[1, :])
-  step_y = (max_y - min_y) * 0.05
   plt.text(min_x, min_y - step_y * 0, f"RMSE:    {metrics1['ate']['rmse']:.4f}m")
   plt.text(min_x, min_y - step_y * 1, f"Mean:    {metrics1['ate']['mean']:.4f}m")
   plt.text(min_x, min_y - step_y * 2, f"Median: {metrics1['ate']['median']:.4f}m")
@@ -546,7 +565,7 @@ def plot_results(gnd, est0, est1, save_path, **kwargs):
 
 
 if __name__ == "__main__":
-  calib_path = "/data/gimbal_experiments/exp-240207/calib"
+  # calib_path = "/data/gimbal_experiments/exp-240207/calib"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-circle-0"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-circle-1"
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-figure8-0"
@@ -555,32 +574,56 @@ if __name__ == "__main__":
   # seq_path = "/data/gimbal_experiments/exp-240207/exp-noisy-1"
 
   # calib_path = "/data/gimbal_experiments/exp-240220/calib-240225"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-circle-0"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-circle-1"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-figure8-0"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-figure8-1"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-0"
-  # seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-1"
-  seq_path = "/data/gimbal_experiments/exp-240220/exp-noisy-2"
+  # calib_path = "/data/gimbal_experiments/exp-240220/calib-240212"
+  # seq_paths = [
+  #   "/data/gimbal_experiments/exp-240220/exp-circle-0",
+  #   "/data/gimbal_experiments/exp-240220/exp-circle-1",
+  #   "/data/gimbal_experiments/exp-240220/exp-figure8-0",
+  #   "/data/gimbal_experiments/exp-240220/exp-figure8-1",
+  #   "/data/gimbal_experiments/exp-240220/exp-noisy-0",
+  #   "/data/gimbal_experiments/exp-240220/exp-noisy-1",
+  #   "/data/gimbal_experiments/exp-240220/exp-noisy-2"
+  # ]
 
-  # Evaluate dataset
-  # eval_dataset(calib_path, seq_path)
+  calib_path = "/data/gimbal_experiments/exp-240303/calib"
+  seq_paths = [
+    "/data/gimbal_experiments/exp-240303/exp-circle-0",
+    # "/data/gimbal_experiments/exp-240303/exp-circle-1",
+    # "/data/gimbal_experiments/exp-240303/exp-circle-2",
+    # "/data/gimbal_experiments/exp-240303/exp-figure8-0",
+    # "/data/gimbal_experiments/exp-240303/exp-figure8-1",
+    # "/data/gimbal_experiments/exp-240303/exp-figure8-2",
+    # "/data/gimbal_experiments/exp-240303/exp-noisy-0",
+    # "/data/gimbal_experiments/exp-240303/exp-noisy-1",
+    # "/data/gimbal_experiments/exp-240303/exp-noisy-2",
+    # "/data/gimbal_experiments/exp-240303/exp-noisy-3",
+  ]
 
-  # Evaluate mocap vs vio estimate
-  mocap_file = join(seq_path, "mocap.csv")
-  rs0_file = join(seq_path, "rs0-okvis_vio.csv")
-  rs1_file = join(seq_path, "rs1-okvis_vio.csv")
+  for seq_path in seq_paths:
+    # Result paths
+    rs0_file = join(seq_path, "rs0-okvis_vio.csv")
+    rs1_file = join(seq_path, "rs1-okvis_vio.csv")
+    mocap_file = join(seq_path, "mocap.csv")
+    joints_file = join(seq_path, "joints.csv")
 
-  joints_file = join(seq_path, "joints.csv")
-  compensate_gimbal(calib_path, rs1_file, joints_file)
-  rs1_file = join(seq_path, "rs1-okvis_vio-compensated.csv")
+    # Evaluate dataset
+    # eval_dataset(calib_path, seq_path)
 
-  metrics0, gnd, est0 = eval_traj(mocap_file, rs0_file, verbose=True)
-  metrics1, gnd, est1 = eval_traj(mocap_file, rs1_file, verbose=True)
+    # Convert results
+    # est_file = join(seq_path, "stamped_traj_estimate.txt")
+    # gnd_file = join(seq_path, "stamped_ground_truth.txt")
+    # reformat_results(rs0_file, est_file)
+    # reformat_results(mocap_file, gnd_file)
 
-  # Plot results
-  seq_name = os.path.basename(seq_path)
-  save_path = f"{seq_path}/../plot_odom-{seq_name}.png"
-  kwargs = {"show": True, "savefig": True}
-  plot_results(gnd, est0, est1, save_path, **kwargs)
-  # plot_3d(gnd, est0, est1)
+    # Evaluate mocap vs vio estimate
+    compensate_gimbal(calib_path, rs1_file, joints_file)
+    rs1_file = join(seq_path, "rs1-okvis_vio-compensated.csv")
+    metrics0, gnd, est0 = eval_traj(mocap_file, rs0_file, verbose=True)
+    metrics1, gnd, est1 = eval_traj(mocap_file, rs1_file, verbose=True)
+
+    # Plot results
+    seq_name = os.path.basename(seq_path)
+    save_path = f"{seq_path}/../plot_odom-{seq_name}.png"
+    kwargs = {"show": True, "savefig": True}
+    plot_results(gnd, est0, est1, save_path, **kwargs)
+    # plot_3d(gnd, est0, est1)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import argparse
 from enum import Enum
 
@@ -16,7 +17,6 @@ from proto import euler321
 from proto import rot2quat
 from proto import quat_mul
 from proto import quat_normalize
-from proto import wrap_pi
 from proto import PID
 from proto import KalmanFilter
 
@@ -397,19 +397,19 @@ class MocapFilter:
 
   def get_position(self):
     """ Get Position """
-    return np.array([state[0], state[1], state[2]])
+    return np.array([self.x[0], self.x[1], self.x[2]])
 
   def get_velocity(self):
     """ Get Velocity """
-    return np.array([state[3], state[4], state[5]])
+    return np.array([self.x[3], self.x[4], self.x[5]])
 
-  def update(self, pos, dt):
+  def update(self, z, dt):
     """ Update """
     # Initialize
     if self.initialized is False:
-      self.x[0] = pos[0]
-      self.x[1] = pos[1]
-      self.x[2] = pos[2]
+      self.x[0] = z[0]
+      self.x[1] = z[1]
+      self.x[2] = z[2]
       self.initialized = True
       return False
 
@@ -470,7 +470,7 @@ class MavNode(Node):
     self.sub_pos_sp = sub_init(Vector3, topic_pos_sp, self.pos_sp_cb, qos)
     self.sub_yaw_sp = sub_init(Float32, topic_yaw_sp, self.yaw_sp_cb, qos)
     self.sub_status = sub_init(VehicleStatus, topic_status, self.status_cb, qos)
-    self.sub_mocap = sub_init(PoseStamped, topic_mocap, self.mocap_cb, qos)
+    self.sub_mocap = sub_init(PoseStamped, topic_mocap, self.mocap_cb, 1)
 
     # State
     self.vehicle_local_position = LocalPosition()
@@ -492,6 +492,11 @@ class MavNode(Node):
 
     # Filter
     self.filter = MocapFilter()
+    self.mocap_csv = open("/tmp/mocap_filter.csv", "w")
+    self.mocap_csv.write("#ts,")
+    self.mocap_csv.write("pos_est_x,pos_est_y,pos_est_z,")
+    self.mocap_csv.write("vel_est_x,vel_est_y,vel_est_z,")
+    self.mocap_csv.write("pos_gnd_x,pos_gnd_y,pos_gnd_z\n")
 
     # Control
     self.pos_ctrl = MavPositionControl()
@@ -555,6 +560,10 @@ class MavNode(Node):
     self.pos_actual = []
     self.pos_traj = []
 
+  def __del__(self):
+    """ Destructor """
+    self.mocap_csv.close()
+
   def pos_cb(self, msg):
     """Callback function for msg topic subscriber."""
     self.vehicle_local_position = msg
@@ -586,11 +595,18 @@ class MavNode(Node):
     rx = msg.pose.position.x
     ry = msg.pose.position.y
     rz = msg.pose.position.z
+    qw = msg.pose.orientation.w
+    qx = msg.pose.orientation.x
+    qy = msg.pose.orientation.y
+    qz = msg.pose.orientation.z
     pos = np.array([rx, ry, rz])
+    quat = np.array([qw, qx, qy, qz])
 
     if self.filter.update(pos, dt):
       self.pos = self.filter.get_position()
       self.vel = self.filter.get_velocity()
+      self.mocap_pos = pos
+      self.mocap_quat = quat
 
   def pos_sp_cb(self, msg):
     """Callback function for position setpoint topic subscriber."""
@@ -899,6 +915,13 @@ class MavNode(Node):
       if self.status.nav_state != VehicleStatus.NAVIGATION_STATE_AUTO_LAND:
         self.land()
 
+  def mocap_record(self, ts, pos_est, vel_est, pos_gnd):
+    """ Record mocap filter """
+    self.mocap_csv.write(f"{ts},")
+    self.mocap_csv.write(f"{pos_est[0]},{pos_est[1]},{pos_est[2]},")
+    self.mocap_csv.write(f"{vel_est[0]},{vel_est[1]},{vel_est[2]},")
+    self.mocap_csv.write(f"{pos_gnd[0]},{pos_gnd[1]},{pos_gnd[2]}\n")
+
   def timer_cb(self):
     """Callback function for the timer."""
     self.pub_heart_beat()
@@ -908,12 +931,16 @@ class MavNode(Node):
       return
 
     # Check MAV is armed and offboard mode activated
-    if self.is_armed() and self.is_offboard():
-      return
+    # if not self.is_armed():
+    #   return
+    # if not self.is_offboard():
+    #   return
+
+    self.mocap_record(self.ts, self.pos, self.vel, self.mocap_pos)
 
     # self.execute_velocity_control_test()
     # self.execute_position_control_test()
-    self.execute_trajectory()
+    # self.execute_trajectory()
 
   def stop_node(self):
     """ Stop Node """
@@ -944,7 +971,7 @@ class MavNode(Node):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument("--sim_mode", default=True)
+  parser.add_argument("--sim_mode", default=False)
   args = parser.parse_args()
 
   # Run Mav Node

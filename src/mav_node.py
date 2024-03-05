@@ -2,6 +2,7 @@
 import argparse
 from enum import Enum
 
+import pandas
 import numpy as np
 from numpy import deg2rad
 from numpy import rad2deg
@@ -34,6 +35,54 @@ from px4_msgs.msg import VehicleCommand
 from px4_msgs.msg import VehicleLocalPosition as LocalPosition
 from px4_msgs.msg import VehicleAttitudeSetpoint
 from px4_msgs.msg import VehicleStatus
+
+
+def plot_mocap_filter(filter_csv):
+  """ Plot filter data """
+  mocap_data = pandas.read_csv(filter_csv)
+  mocap_time = (mocap_data["#ts"] - mocap_data["#ts"][0]) * 1e-9
+  pos_est = mocap_data[["pos_est_x", "pos_est_y", "pos_est_z"]].to_numpy()
+  vel_est = mocap_data[["vel_est_x", "vel_est_y", "vel_est_z"]].to_numpy()
+  pos_gnd = mocap_data[["pos_gnd_x", "pos_gnd_y", "pos_gnd_z"]].to_numpy()
+
+  # Plot position
+  plt.figure()
+  plt.subplot(311)
+  plt.plot(mocap_time, pos_est[:, 0], "r-")
+  plt.plot(mocap_time, pos_gnd[:, 0], "k--")
+  plt.xlabel("Time [s]")
+  plt.ylabel("Displacement [m]")
+
+  plt.subplot(312)
+  plt.plot(mocap_time, pos_est[:, 1], "g-")
+  plt.plot(mocap_time, pos_gnd[:, 1], "k--")
+  plt.xlabel("Time [s]")
+  plt.ylabel("Displacement [m]")
+
+  plt.subplot(313)
+  plt.plot(mocap_time, pos_est[:, 2], "b-")
+  plt.plot(mocap_time, pos_gnd[:, 2], "k--")
+  plt.xlabel("Time [s]")
+  plt.ylabel("Displacement [m]")
+
+  # Plot velocity
+  plt.figure()
+  plt.subplot(311)
+  plt.plot(mocap_time, vel_est[:, 0], "r-")
+  plt.xlabel("Time [s]")
+  plt.ylabel("Displacement [m]")
+
+  plt.subplot(312)
+  plt.plot(mocap_time, vel_est[:, 1], "g-")
+  plt.xlabel("Time [s]")
+  plt.ylabel("Displacement [m]")
+
+  plt.subplot(313)
+  plt.plot(mocap_time, vel_est[:, 2], "b-")
+  plt.xlabel("Time [s]")
+  plt.ylabel("Displacement [m]")
+
+  plt.show()
 
 
 class MavVelocityControl:
